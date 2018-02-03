@@ -62,13 +62,34 @@ void fiftyoneDegreesFileReaderFree(
 	reader->linkedList = NULL;
 }
 
+fiftyoneDegreesFileOpenStatus fiftyoneDegreesFileOpen(
+	const char* fileName,
+	FILE** handle) {
+	// Open the file and hold on to the data.ptr.
+#ifndef _MSC_FULL_VER
+	*handle = fopen(fileName, "rb");
+#else
+	/* If using Microsoft use the fopen_s method to avoid warning */
+	errno_t error = fopen_s(handle, fileName, "rb");
+	if (error != 0) {
+		switch (error) {
+		case ENFILE:
+		case EMFILE:
+			return FIFTYONEDEGREES_FILE_OPEN_STATUS_TOO_MANY_OPEN_FILES;
+		default:
+			return FIFTYONEDEGREES_FILE_OPEN_STATUS_FILE_NOT_FOUND;
+		}
+	}
+#endif
+	return FIFTYONEDEGREES_FILE_OPEN_STATUS_SUCCESS;
+}
+
 fiftyoneDegreesFileOpenStatus fiftyoneDegreesFileReaderInit(
 	fiftyoneDegreesFileReader *reader,
 	const char *fileName,
 	int concurrency,
 	void*(*malloc)(size_t __size),
-	void(*free)(void*),
-	fiftyoneDegreesFileOpenStatus(*open)(const char* fileName, FILE** handle)) {
+	void(*free)(void*)) {
 	fiftyoneDegreesFileOpenStatus status = 
 		FIFTYONEDEGREES_FILE_OPEN_STATUS_FAILED;
 	int i;
@@ -86,7 +107,7 @@ fiftyoneDegreesFileOpenStatus fiftyoneDegreesFileReaderInit(
 
 			// Open the file. If anything other than zero is returned then
 			// exit.
-			status = open(fileName, &handle->file);
+			status = fiftyoneDegreesFileOpen(fileName, &handle->file);
 			if (status != FIFTYONEDEGREES_FILE_OPEN_STATUS_SUCCESS) {
 				fiftyoneDegreesFileReaderFree(reader, free);
 				return status;

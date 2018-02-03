@@ -29,7 +29,9 @@ typedef struct size_counter_t {
 	uint32_t max; /* The maximum number of entries to read */
 } sizeCounter;
 
-static void releaseNothing(fiftyoneDegreesCollectionItem *item) {}
+static void releaseNothing(fiftyoneDegreesCollectionItem *item) {
+	assert(item != NULL);
+}
 
 static void releaseCache(fiftyoneDegreesCollectionItem *item) {
 	if (item->handle != NULL) {

@@ -37,7 +37,7 @@
 #include <string.h>
 
 typedef struct t_fiftyone_degrees_collection_config {
-	int loaded; // Number of items to load into memory from the start of the collection
+	uint32_t loaded; // Number of items to load into memory from the start of the collection
 	int capacity; // Number of items the cache should store, 0 for no cache
 	int concurrency; // Expected number of concurrent requests
 } fiftyoneDegreesCollectionConfig;

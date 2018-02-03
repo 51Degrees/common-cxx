@@ -61,13 +61,16 @@ typedef struct fiftyonedegrees_file_reader_t {
 
 void fiftyoneDegreesFileReaderFree(fiftyoneDegreesFileReader* reader, void(*free)(void*));
 
+fiftyoneDegreesFileOpenStatus fiftyoneDegreesFileOpen(
+	const char* fileName,
+	FILE** handle);
+
 fiftyoneDegreesFileOpenStatus fiftyoneDegreesFileReaderInit(
 	fiftyoneDegreesFileReader *reader,
 	const char *fileName,
 	int concurrency,
 	void*(*malloc)(size_t __size),
-	void(*free)(void*),
-	fiftyoneDegreesFileOpenStatus(*open)(const char* fileName, FILE** handle));
+	void(*free)(void*));
 
 fiftyoneDegreesFileHandle* fiftyoneDegreesFileHandleGet(
 	fiftyoneDegreesFileReader *reader);
