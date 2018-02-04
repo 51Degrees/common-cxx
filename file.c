@@ -76,6 +76,7 @@ fiftyoneDegreesFileOpenStatus fiftyoneDegreesFileOpen(
 		case ENFILE:
 		case EMFILE:
 			return FIFTYONEDEGREES_FILE_OPEN_STATUS_TOO_MANY_OPEN_FILES;
+		case ENOENT:
 		default:
 			return FIFTYONEDEGREES_FILE_OPEN_STATUS_FILE_NOT_FOUND;
 		}
