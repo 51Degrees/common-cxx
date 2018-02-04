@@ -4,6 +4,12 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#ifdef __cplusplus
+#define EXTERNAL extern "C"
+#else
+#define EXTERNAL
+#endif
+
 typedef unsigned char byte;
 
 typedef struct fiftyoneDegrees_data_t {
@@ -12,7 +18,8 @@ typedef struct fiftyoneDegrees_data_t {
 	uint32_t length; /* Size in bytes of the data at the pointer */
 } fiftyoneDegreesData;
 
-void fiftyoneDegreesDataReset(fiftyoneDegreesData *data);
+
+EXTERNAL void fiftyoneDegreesDataReset(fiftyoneDegreesData *data);
 
 void* fiftyoneDegreesDataMalloc(
 	fiftyoneDegreesData *data,

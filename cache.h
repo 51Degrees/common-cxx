@@ -66,7 +66,7 @@ typedef struct fiftyoneDegrees_cache_node_t {
 	fiftyoneDegreesCacheNode *treeRight; /* Right node or NULL if none */
 	byte colour; /* The colour of the node in the red black tree */
 #ifndef FIFTYONEDEGREES_NO_THREADING
-	volatile unsigned int activeCount; /* Number of threads actively using the 
+	volatile long activeCount; /* Number of threads actively using the
 									   data*/
 #endif
 } fiftyoneDegreesCacheNode;
@@ -98,15 +98,15 @@ struct fiftyoneDegrees_cache_t {
 	int32_t concurrency; /* Expected concurrency / number of shards */
 	int32_t capacity; /* Capacity of the cache */
 #ifndef FIFTYONEDEGREES_NO_THREADING
-	volatile unsigned int hits; 
+	volatile long hits; 
 #else
-	unsigned int hits;
+	unsigned long hits;
 #endif
 	/* The number of times an item was found in the cache */
 #ifndef FIFTYONEDEGREES_NO_THREADING
-	volatile unsigned int misses;
+	volatile long misses;
 #else
-	unsigned int misses;
+	unsigned long misses;
 #endif
 	/* The number of times an item was not found in the cache */
 	void*(*mallocCacheData)(size_t __size); /* Function to allocate memory */
