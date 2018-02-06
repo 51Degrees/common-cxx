@@ -44,5 +44,7 @@ static void FIFTYONEDEGREES_CALL_CONV freeInternal(void *__ptr) {
 	free(__ptr);
 }
 
-void *(FIFTYONEDEGREES_CALL_CONV *fiftyoneDegreesMalloc)(size_t __size) = mallocInternal;
-void (FIFTYONEDEGREES_CALL_CONV *fiftyoneDegreesFree)(void *__ptr) = freeInternal;
+void *(FIFTYONEDEGREES_CALL_CONV *fiftyoneDegreesMalloc)(size_t __size) = 
+	mallocInternal;
+void (FIFTYONEDEGREES_CALL_CONV *fiftyoneDegreesFree)(void *__ptr) = 
+	freeInternal;
