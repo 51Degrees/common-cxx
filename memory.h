@@ -27,6 +27,18 @@
 #include <stdlib.h>
 #include "data.h"
 
+#ifdef __cplusplus
+#define EXTERNAL extern "C"
+#else
+#define EXTERNAL
+#endif
+
+#ifdef _MSC_VER
+#define FIFTYONEDEGREES_CALL_CONV __cdecl
+#else
+#define FIFTYONEDEGREES_CALL_CONV
+#endif
+
 /**
 * Used to read data from memory in a similar manner to a file handle.
 */
@@ -39,5 +51,9 @@ typedef struct fiftyoneDegrees_memory_reader_t {
 int fiftyoneDegreesMemoryAdvance(
 	fiftyoneDegreesMemoryReader *reader,
 	size_t advanceBy);
+
+EXTERNAL void *(FIFTYONEDEGREES_CALL_CONV *fiftyoneDegreesMalloc)(size_t __size);
+
+EXTERNAL void (FIFTYONEDEGREES_CALL_CONV *fiftyoneDegreesFree)(void *__ptr);
 
 #endif

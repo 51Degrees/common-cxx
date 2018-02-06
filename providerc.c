@@ -3,11 +3,11 @@
 static const void* setResource(
 	fiftyoneDegreesProvider *provider,
 	const void *resource) {
-	fiftyoneDegreesProviderTracker *tracker;
+	fiftyoneDegreesProviderResourceHandle *tracker;
 
 	// Create a new active wrapper for the provider.
-	tracker = (fiftyoneDegreesProviderTracker*)malloc(
-		sizeof(fiftyoneDegreesProviderTracker));
+	tracker = (fiftyoneDegreesProviderResourceHandle*)malloc(
+		sizeof(fiftyoneDegreesProviderResourceHandle));
 	if (tracker != NULL) {
 
 		// Set the number of offsets using the active dataset to zero.
@@ -26,7 +26,7 @@ static const void* setResource(
 	return provider->active->resource;
 }
 
-static void freeTracker(fiftyoneDegreesProviderTracker *tracker) {
+static void freeTracker(fiftyoneDegreesProviderResourceHandle *tracker) {
 	tracker->provider->freeResource((void*)tracker->resource);
 	tracker->provider->freeMemory((void*)tracker);
 }
@@ -60,15 +60,15 @@ void fiftyoneDegreesProviderFree(fiftyoneDegreesProvider *provider) {
 	provider->freeMemory((void*)provider->active);
 }
 
-fiftyoneDegreesProviderTracker* fiftyoneDegreesProviderIncUse(
+fiftyoneDegreesProviderResourceHandle* fiftyoneDegreesProviderIncUse(
 	fiftyoneDegreesProvider *provider) {
-	fiftyoneDegreesProviderTracker *tracker = NULL;
+	fiftyoneDegreesProviderResourceHandle *tracker = NULL;
 #ifndef FIFTYONEDEGREES_NO_THREADING
 	do {
 		if (tracker != NULL) {
 			fiftyoneDegreesProviderDecUse(tracker);
 		}
-		tracker = (fiftyoneDegreesProviderTracker*)provider->active;
+		tracker = (fiftyoneDegreesProviderResourceHandle*)provider->active;
 		FIFTYONEDEGREES_INTERLOCK_INC(&tracker->inUse);
 	} while (tracker != provider->active);
 #else
@@ -78,7 +78,7 @@ fiftyoneDegreesProviderTracker* fiftyoneDegreesProviderIncUse(
 	return tracker;
 }
 
-void fiftyoneDegreesProviderDecUse(fiftyoneDegreesProviderTracker *tracker) {
+void fiftyoneDegreesProviderDecUse(fiftyoneDegreesProviderResourceHandle *tracker) {
 	assert(tracker->inUse > 0);
 #ifndef FIFTYONEDEGREES_NO_THREADING
 	if (FIFTYONEDEGREES_INTERLOCK_DEC(&tracker->inUse) == 0 &&
@@ -94,8 +94,8 @@ void fiftyoneDegreesProviderDecUse(fiftyoneDegreesProviderTracker *tracker) {
 const void* fiftyoneDegreesProviderReplace(
 	fiftyoneDegreesProvider *provider,
 	const void *newResource) {
-	fiftyoneDegreesProviderTracker *existing = 
-		(fiftyoneDegreesProviderTracker*)provider->active;
+	fiftyoneDegreesProviderResourceHandle *existing = 
+		(fiftyoneDegreesProviderResourceHandle*)provider->active;
 
 #ifndef FIFTYONEDEGREES_NO_THREADING
 	FIFTYONEDEGREES_MUTEX_LOCK(&provider->lock);

@@ -35,3 +35,14 @@ int fiftyoneDegreesMemoryAdvance(
 	}
 	return 1;
 }
+
+static void* FIFTYONEDEGREES_CALL_CONV mallocInternal(size_t __size) {
+	return malloc(__size);
+}
+
+static void FIFTYONEDEGREES_CALL_CONV freeInternal(void *__ptr) {
+	free(__ptr);
+}
+
+void *(FIFTYONEDEGREES_CALL_CONV *fiftyoneDegreesMalloc)(size_t __size) = mallocInternal;
+void (FIFTYONEDEGREES_CALL_CONV *fiftyoneDegreesFree)(void *__ptr) = freeInternal;

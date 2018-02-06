@@ -18,14 +18,14 @@ typedef struct fiftyoneDegrees_provider_t fiftyoneDegreesProvider;
 * Tracks the number of active uses of the resource within the provider.
 */
 #pragma pack(push, 4)
-typedef struct fiftyoneDegrees_provider_resource_tracker_t {
+typedef struct fiftyoneDegrees_provider_resource_handle_t {
 	const void *resource; /* Pointer to the resource the provider is providing. 
 						  */
 	const fiftyoneDegreesProvider *provider; /* Pointer to the provider the 
 											 tracker relates to. */
-	unsigned long volatile inUse; /* Counter indicating the number of active
-								 uses of the resource. */
-} fiftyoneDegreesProviderTracker;
+	volatile long inUse; /* Counter indicating the number of active
+						 uses of the resource. */
+} fiftyoneDegreesProviderResourceHandle;
 #pragma pack(pop)
 
 /**
@@ -33,9 +33,9 @@ typedef struct fiftyoneDegrees_provider_resource_tracker_t {
  */
 typedef struct fiftyoneDegrees_provider_t {
 #ifndef FIFTYONEDEGREES_NO_THREADING
-	fiftyoneDegreesProviderTracker volatile *active; /* Current tracker for
-													 resource used by the 
-													 provider. */
+	fiftyoneDegreesProviderResourceHandle volatile *active; /* Current handle 
+															for resource used 
+															by the provider. */
 	FIFTYONEDEGREES_MUTEX lock; /* Used to lock critical regions where mutable
 								variables are written to */
 #else
@@ -56,10 +56,10 @@ EXTERNAL const void* fiftyoneDegreesProviderInit(
 
 EXTERNAL void fiftyoneDegreesProviderFree(fiftyoneDegreesProvider *provider);
 
-EXTERNAL fiftyoneDegreesProviderTracker* fiftyoneDegreesProviderIncUse(
+EXTERNAL fiftyoneDegreesProviderResourceHandle* fiftyoneDegreesProviderIncUse(
 	fiftyoneDegreesProvider *provider);
 
-EXTERNAL void fiftyoneDegreesProviderDecUse(fiftyoneDegreesProviderTracker *tracker);
+EXTERNAL void fiftyoneDegreesProviderDecUse(fiftyoneDegreesProviderResourceHandle *tracker);
 
 EXTERNAL const void* fiftyoneDegreesProviderReplace(
 	fiftyoneDegreesProvider *provider,
