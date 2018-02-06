@@ -21,7 +21,6 @@
  * defined by the Mozilla Public License, v. 2.0.
  ********************************************************************** */
 
-
 /**
  * Define macros if compiler directive is not explicitly requesting single
  * threaded operation.
