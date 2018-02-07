@@ -30,46 +30,139 @@ typedef int(*parseIterator)(
 /**
  * State is an integer which is increased everytime the method is called.
  */
-static int callbackIpAddressCount(void *state, void *segment) {
-	*((int*)state)++;
-	return 0;
+static int callbackIpAddressCount(void *state, fiftyoneDegreesEvidenceIpType type, const char *start) {
+	if (type = FIFTYONEDEGREES_EVIDENCE_IP_TYPE_INVALID) {
+		*((int*)state)++;
+		if (type == FIFTYONEDEGREES_EVIDENCE_IP_TYPE_IPV6) {
+			*((int*)state)++;
+		}
+	}
 }
 
-static int callbackIpAddressBuild(void *state, void *segment) {
-	// TODO - Fix to add to the array. Need another field / structure.
-	*((byte*)state) = *(byte*)segment;
+static byte parseIpV6Byte(const char *start) {
+	// TODO - implement
+}
+
+static int callbackIpAddressBuild(void *state, fiftyoneDegreesEvidenceIpType type, const char *start) {
+	fiftyoneDegreesEvidenceIpAddress *address = (fiftyoneDegreesEvidenceIpAddress*)state;
+	if (type == FIFTYONEDEGREES_EVIDENCE_IP_TYPE_IPV4) {
+		*address->next = atoi(start);
+		address->next++;
+	}
+	else if (type == FIFTYONEDEGREES_EVIDENCE_IP_TYPE_IPV6) {
+		*address->next = parseIpV6Byte(start);
+		address->next++;
+		*address->next = parseIpV6Byte(start + 2);
+		address->next++;
+	}
+}
+
+static fiftyoneDegreesEvidenceIpType getIpTypeFromSeparator(char separator) {
+	switch (separator) {
+	case '.':
+		return FIFTYONEDEGREES_EVIDENCE_IP_TYPE_IPV4;
+	case ':':
+		return FIFTYONEDEGREES_EVIDENCE_IP_TYPE_IPV6;
+	default:
+		return FIFTYONEDEGREES_EVIDENCE_IP_TYPE_INVALID;
+	}
 }
 
 /**
  * Calls the callback method every time a byte is identified in the value
  * when parsed left to right.
  */
-static void* iterateIpAddress(const char *value, void *state, parseIterator callback) {
-	// foreach byte call the callback.
+static fiftyoneDegreesEvidenceIpType iterateIpAddress(
+	const char *start,
+	const char *end, 
+	void *state, 
+	fiftyoneDegreesEvidenceIpType type,
+	parseIterator foundByte) {
+	const char *current = start;
+	const char *nextByte = current;
+	while (current != NULL) {
+		if (*current == ',' ||
+			*current == ':' ||
+			*current == '.') {
+			if (type == FIFTYONEDEGREES_EVIDENCE_IP_TYPE_INVALID) {
+				type = getIpTypeFromSeparator(*current);
+			}
+			foundByte(state, type, nextByte);
+			nextByte = current++;
+
+		}
+		current++;
+		// TODO - work out when a new full byte has been found and call foundByte. BEN
+		foundByte(state, current); // THIS IS WRONG AND NEEDS CHANGING. BEN
+	}
+	return type;
 }
 
-static void* parseIpAddress(
+static fiftyoneDegreesEvidenceIpAddress* parseIpAddress(
 	fiftyoneDegreesEvidenceCollection *evidence, 
-	const char *value) {
-	int count = 0;
-	iterateIpAddress(value, &count, callbackIpAddressCount);
-	unsigned char* result = evidence->malloc(count * sizeof(byte));
-	iterateIpAddress(value, result, callbackIpAddressBuild);
-	return result;
+	const char *start,
+	const char *end,
+	fiftyoneDegreesEvidenceIpType type) {
+	int count;
+	fiftyoneDegreesEvidenceIpAddress *address;
+	fiftyoneDegreesEvidenceIpType = iterateIpAddress(
+		start,
+		end,
+		&count,
+		FIFTYONEDEGREES_EVIDENCE_IP_TYPE_INVALID,
+		callbackIpAddressCount);
+	address = evidence->malloc(
+		sizeof(fiftyoneDegreesEvidenceIpAddress) +
+		(count * sizeof(byte)));
+	if (address != NULL) {
+		// Set the address of the byte array to the byte following the
+		// IpAddress structure. The previous malloc included the necessary
+		// space to make this available.
+		address->address = (byte*)(address + 1);
+		// Set the next byte to be added during the parse operation.
+		address->next = (byte*)(address + 1);
+		// Add the bytes from the source value and get the type of address.
+		address->type = iterateIpAddress(
+			start,
+			end,
+			address,
+			type,
+			callbackIpAddressBuild);
+	}
+	return address;
 }
 
-static void parseIpAddresses(
+static fiftyoneDegreesEvidenceIpAddress* parseIpAddresses(
 	fiftyoneDegreesEvidenceCollection *evidence,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
-	int count = 1;
-	// TODO - Fix to handle multiple IP addresses.
-	fiftyoneDegreesEvidenceIpAddresses *addresses = evidence->malloc(
-		sizeof(fiftyoneDegreesEvidenceIpAddresses) +
-		(count * sizeof(fiftyoneDegreesEvidenceIpAddress)));
-	if (addresses != NULL) {
-
+	const char *start = pair->originalValue;
+	const char *current = start;
+	fiftyoneDegreesEvidenceIpAddress *head = NULL;
+	fiftyoneDegreesEvidenceIpAddress *last = NULL;
+	fiftyoneDegreesEvidenceIpAddress *item = NULL;
+	fiftyoneDegreesEvidenceIpType type = FIFTYONEDEGREES_EVIDENCE_IP_TYPE_INVALID;
+	while (current != NULL) {
+		if (current == ' ') {
+			// We have reached the end of a probable IP address.
+			item = parseIpAddress(evidence, start, current - 1, type);
+			if (item != NULL) {
+				if (last == NULL && head == NULL) {
+					// Add the first item to the list.
+					head = item;
+					last = item;
+				}
+				else {
+					// Add the new item to the end of the list.
+					last->next = item;
+					last = item;
+				}
+				item->next = NULL;
+			}
+			start = current;
+		}
+		current++;
 	}
-	return addresses;
+	return head;
 }
 
 static void parsePair(
@@ -164,21 +257,18 @@ fiftyoneDegreesEvidenceKeyValuePair* fiftyoneDegreesEvidenceAddString(
 int fiftyoneDegreesEvidenceIterate(
 	fiftyoneDegreesEvidenceCollection *evidence,
 	void *state,
-	fiftyoneDegreesEvidenceHeaderPrefix prefix,
-	const char *field,
-	fiftyoneDegreesEvidenceIterator callback) {
+	fiftyoneDegreesEvidenceCompare compareMethod,
+	fiftyoneDegreesEvidenceMatched matchedMethod) {
 	int i;
 	int count = 0;
 	fiftyoneDegreesEvidenceKeyValuePair *pair;
 	for (i = 0; i < evidence->count; i++) {
 		pair = &evidence->items[i];
-		if (pair->prefix == prefix &&
-			strcmp(pair->field, field) == 0) {
+		if (compareMethod(state, pair) == true) {
 			if (pair->parsedValue == NULL) {
 				parsePair(evidence, pair);
 			}
-			callback(state, pair);
-			// todo match callback + comparitor callback?
+			matchedMethod(state, pair);
 			count++;
 		}
 	}

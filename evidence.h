@@ -25,6 +25,7 @@
 #define FIFTYONEDEGREES_EVIDENCE_H_INCLUDED
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdlib.h>
 
 #ifdef __cplusplus
@@ -45,17 +46,19 @@ typedef enum e_fiftyone_degrees_evidence_header_prefix {
 typedef enum e_fiftyone_degrees_evidence_ip_type {
 	FIFTYONEDEGREES_EVIDENCE_IP_TYPE_IPV4 = 0,
 	FIFTYONEDEGREES_EVIDENCE_IP_TYPE_IPV6 = 1,
+	FIFTYONEDEGREES_EVIDENCE_IP_TYPE_INVALID = 2,
 } fiftyoneDegreesEvidenceIpType;
+
+typedef struct fiftyone_degrees_evidence_ip_address fiftyoneDegreesEvidenceIpAddress;
 
 typedef struct fiftyone_degrees_evidence_ip_address {
 	fiftyoneDegreesEvidenceIpType type;
-	byte *address;
+	byte *address; // The first byte of the address
+	byte *current; // When building the address the next byte to update
+	fiftyoneDegreesEvidenceIpAddress *next; // Next address in the list
+	// const char *originalStart; // The first character for the IP address - TODO add optimisation
+	// const char *originalEnd; // The last character for the IP addresses
 } fiftyoneDegreesEvidenceIpAddress;
-
-typedef struct fiftyone_degrees_evidence_ip_addresses {
-	fiftyoneDegreesEvidenceIpAddress *items;
-	int count;
-} fiftyoneDegreesEvidenceIpAddresses;
 
 typedef struct fiftyone_degrees_evidence_key_value_pair {
 	fiftyoneDegreesEvidenceHeaderPrefix prefix; // e.g. FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER
@@ -69,7 +72,7 @@ typedef struct fiftyone_degrees_evidence_collection {
 	int count;
 	int capacity;
 	void*(*malloc)(size_t);
-	void(*free)(size_t);
+	void(*free)(void*);
 } fiftyoneDegreesEvidenceCollection;
 
 /**
@@ -77,7 +80,11 @@ typedef struct fiftyone_degrees_evidence_collection {
  * collection of evidence. The parsedValue will be set to the parsed data or
  * NULL if it has not been possible to parse the original value.
  */
-typedef int (*fiftyoneDegreesEvidenceIterator)(
+typedef int (*fiftyoneDegreesEvidenceMatched)(
+	void *state,
+	fiftyoneDegreesEvidenceKeyValuePair *pair);
+
+typedef bool(*fiftyoneDegreesEvidenceCompare)(
 	void *state,
 	fiftyoneDegreesEvidenceKeyValuePair *pair);
 
@@ -110,9 +117,8 @@ EXTERNAL fiftyoneDegreesEvidenceKeyValuePair* fiftyoneDegreesEvidenceAddString(
 EXTERNAL int fiftyoneDegreesEvidenceIterate(
 	fiftyoneDegreesEvidenceCollection *evidence,
 	void *state,
-	fiftyoneDegreesEvidenceHeaderPrefix prefix,
-	const char *field,
-	fiftyoneDegreesEvidenceIterator callback);
+	fiftyoneDegreesEvidenceCompare compareMethod,
+	fiftyoneDegreesEvidenceMatched matchedMethod);
 
 EXTERNAL fiftyoneDegreesEvidenceHeaderPrefix fiftyoneDegreesEvidenceMapPrefix(const char *prefix);
 
