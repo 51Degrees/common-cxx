@@ -150,12 +150,13 @@ fiftyoneDegreesEvidenceKeyValuePair* fiftyoneDegreesEvidenceAddString(
 	const char *field,
 	const char *originalValue) {
 	fiftyoneDegreesEvidenceKeyValuePair *pair = NULL;
-	if (evidence->count + 1 < evidence->capacity) {
+	if (evidence->count < evidence->capacity) {
 		pair = &evidence->items[evidence->count];
 		pair->prefix = prefix;
 		pair->field = field;
 		pair->originalValue = (void*)originalValue;
 		pair->parsedValue = NULL;
+		evidence->count++;
 	}
 	return pair;
 }
@@ -172,11 +173,12 @@ int fiftyoneDegreesEvidenceIterate(
 	for (i = 0; i < evidence->count; i++) {
 		pair = &evidence->items[i];
 		if (pair->prefix == prefix &&
-			strcmp(pair->field, field)) {
+			strcmp(pair->field, field) == 0) {
 			if (pair->parsedValue == NULL) {
 				parsePair(evidence, pair);
 			}
 			callback(state, pair);
+			// todo match callback + comparitor callback?
 			count++;
 		}
 	}
@@ -185,7 +187,14 @@ int fiftyoneDegreesEvidenceIterate(
 
 fiftyoneDegreesEvidenceHeaderPrefix fiftyoneDegreesEvidenceMapPrefix(
 	const char *prefix) {
-	if (strcmp("header", prefix)) {
+	if (strcmp("header", prefix) == 0) {
+		// todo check if known IP address header.
 		return FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING;
+	}
+	if (strcmp("server", prefix) == 0) {
+		return FIFTYONEDEGREES_EVIDENCE_SERVER;
+	}
+	if (strcmp("cookie", prefix) == 0) {
+		return FIFTYONEDEGREES_EVIDENCE_COOKIES;
 	}
 }
