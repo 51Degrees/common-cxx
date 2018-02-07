@@ -61,20 +61,15 @@ EXTERNAL typedef struct fiftyone_degrees_properties_required_t {
 												another data set instance */
 } fiftyoneDegreesPropertiesRequired;
 
-typedef struct fiftyone_degrees_properties_source_t {
-	uint32_t count; /* Number of properties available in the source */
-	void *state; /* State for the get method. Usually a data set */
-	fiftyoneDegressPropertiesGet get; /* Gets a property as a string from the
-									  source */
-	void*(*malloc)(size_t); /* Allocates memory for the results */
-	void(*free)(void*); /* Frees memory */
-} fiftyoneDegreesPropertiesSource;
-
 EXTERNAL fiftyoneDegreesPropertiesRequired fiftyoneDegreesPropertiesDefault;
 
 fiftyoneDegreesPropertiesResults* fiftyoneDegreesPropertiesCreate(
-	fiftyoneDegreesPropertiesSource *source,
-	fiftyoneDegreesPropertiesRequired *properties);
+	void *state,
+	uint32_t count,
+	fiftyoneDegreesPropertiesRequired *properties,
+	fiftyoneDegressPropertiesGet get,
+	void*(*malloc)(size_t),
+	void(*free)(void*));
 
 int fiftyoneDegreesPropertiesGetPropertyIndexFromName(
 	fiftyoneDegreesPropertiesResults *results,
