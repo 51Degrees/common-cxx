@@ -53,7 +53,7 @@ fiftyoneDegreesString* fiftyoneDegreesListGetAsString(
 }
 
 void fiftyoneDegreesListFree(fiftyoneDegreesList *list) {
-	int i;
+	uint32_t i;
 	if (list->items != NULL) {
 		for (i = 0; i < list->count; i++) {
 			list->collection->release(&list->items[i]);

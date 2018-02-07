@@ -29,8 +29,8 @@
 
 typedef struct fiftyoneDegrees_list_t {
 	fiftyoneDegreesCollectionItem *items; // Array of items
-	int capacity; // Capacity of the list to store items
-	int count; // Number of items currently in the list 
+	uint32_t capacity; // Capacity of the list to store items
+	uint32_t count; // Number of items currently in the list 
 	void *memoryToFree; // Memory used by items
 	fiftyoneDegreesCollection *collection;
 } fiftyoneDegreesList;
