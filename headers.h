@@ -24,7 +24,9 @@
 #ifndef FIFTYONEDEGREES_HEADERS_H_INCLUDED
 #define FIFTYONEDEGREES_HEADERS_H_INCLUDED
 
+#include <stdbool.h>
 #include <stdint.h>
+#include "list.h"
 
 #ifdef __cplusplus
 #define EXTERNAL extern "C"
@@ -32,5 +34,33 @@
 #define EXTERNAL
 #endif
 
+typedef struct fiftyone_degrees_headers_t {
+	fiftyoneDegreesList unique; /* List of unique HTTP header string from a 
+								strings collection */
+	bool useUpperPrefixedHeaders; /* True if an upper case prefixed checks are 
+								  should be used */
+	void*(*malloc)(size_t); /* Used to add strings to the headers lists */
+	void(*free)(void*); /* Used to free the memory used by the headers */
+} fiftyoneDegreesHeaders;
+
+typedef fiftyoneDegreesString*(*fiftyoneDegreesHeadersGet)(
+	void *state,
+	int index, 
+	fiftyoneDegreesCollectionItem *item);
+
+fiftyoneDegreesHeaders* fiftyoneDegreesHeadersCreate(
+	void *state,
+	int count,
+	bool useUpperPrefixedHeaders,
+	fiftyoneDegreesHeadersGet getHeaderMethod,
+	void*(*malloc)(size_t),
+	void(*free)(void*));
+
+int fiftyoneDegreesHeaderGetIndex(
+	fiftyoneDegreesHeaders *headers,
+	char* httpHeaderName,
+	int length);
+
+void fiftyoneDegreesHeadersFree(fiftyoneDegreesHeaders *headers);
 
 #endif

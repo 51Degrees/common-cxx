@@ -30,12 +30,21 @@ fiftyoneDegreesPropertiesRequired fiftyoneDegreesPropertiesDefault = {
 	NULL // No list
 };
 
+typedef struct properties_source_t {
+	uint32_t count; /* Number of properties available in the source */
+	void *state; /* State for the get method. Usually a data set */
+	fiftyoneDegressPropertiesGet get; /* Gets a property as a string from the
+									  source */
+	void*(*malloc)(size_t); /* Allocates memory for the results */
+	void(*free)(void*); /* Frees memory */
+} propertiesSource;
+
 typedef void(*matchedPropertyMethod)(
 	fiftyoneDegreesPropertiesResults*, uint32_t, uint32_t);
 
 static fiftyoneDegreesPropertiesResults* initRequiredPropertiesMemory(
 	uint32_t count,
-	fiftyoneDegreesPropertiesSource *source) {
+	propertiesSource *source) {
 	fiftyoneDegreesPropertiesResults *results = source->malloc(
 		sizeof(fiftyoneDegreesPropertiesResults) +
 		(count * sizeof(uint32_t)) +
@@ -50,15 +59,19 @@ static fiftyoneDegreesPropertiesResults* initRequiredPropertiesMemory(
 	return results;
 }
 
+#ifdef _MSC_VER
 #pragma warning (push)
 #pragma warning (disable: 4100)
+#endif
 static void increaseRequiredPropertiesCount(
 	fiftyoneDegreesPropertiesResults *results,
 	uint32_t propertyIndex,
 	uint32_t requiredPropertyIndex) {
 	results->count++;
 }
+#ifdef _MSC_VER
 #pragma warning (pop)
+#endif
 
 static void addRequiredProperty(
 	fiftyoneDegreesPropertiesResults *results,
@@ -68,7 +81,7 @@ static void addRequiredProperty(
 }
 
 static int getPropertyIndex(
-	fiftyoneDegreesPropertiesSource *source,
+	propertiesSource *source,
 	const char *requiredPropertyName,
 	int requiredPropertyLength) {
 	uint32_t i = 0;
@@ -79,7 +92,7 @@ static int getPropertyIndex(
 		test = source->get(source->state, i, &string);
 		// Size includes the NULL terminator. Ignore this character.
 		if (test->size - 1 == requiredPropertyLength &&
-			strncmp(FIFTYONEDEGREES_STRING(test), 
+			strncmp(FIFTYONEDEGREES_STRING(test),
 					requiredPropertyName,
 					requiredPropertyLength) == 0) {
 			return i;
@@ -90,7 +103,7 @@ static int getPropertyIndex(
 }
 
 static void iteratePropertiesFromExisting(
-	fiftyoneDegreesPropertiesSource *source,
+	propertiesSource *source,
 	fiftyoneDegreesPropertiesResults *results,
 	fiftyoneDegreesPropertiesResults *existing,
 	matchedPropertyMethod match) {
@@ -110,7 +123,7 @@ static void iteratePropertiesFromExisting(
 }
 
 static void iteratePropertiesFromString(
-	fiftyoneDegreesPropertiesSource *source,
+	propertiesSource *source,
 	fiftyoneDegreesPropertiesResults *results,
 	const char* properties,
 	matchedPropertyMethod match) {
@@ -123,7 +136,7 @@ static void iteratePropertiesFromString(
 			// If the property name is one that is valid in the data set then
 			// use the callback matchedProperty to provide the index.
 			propertyIndex = getPropertyIndex(
-				source, 
+				source,
 				property,
 				(int)(end - property));
 			if (propertyIndex >= 0) {
@@ -135,7 +148,7 @@ static void iteratePropertiesFromString(
 }
 
 static void iteratePropertiesFromArray(
-	fiftyoneDegreesPropertiesSource *source,
+	propertiesSource *source,
 	fiftyoneDegreesPropertiesResults *results,
 	const char** properties,
 	int count,
@@ -143,8 +156,8 @@ static void iteratePropertiesFromArray(
 	int i, propertyIndex, requiredIndex = 0;
 	for (i = 0; i < count; i++) {
 		propertyIndex = getPropertyIndex(
-			source, 
-			properties[i], 
+			source,
+			properties[i],
 			(int)strlen(properties[i]));
 		if (propertyIndex >= 0) {
 			match(results, propertyIndex, requiredIndex++);
@@ -153,7 +166,7 @@ static void iteratePropertiesFromArray(
 }
 
 static uint32_t countPropertiesFromString(
-	fiftyoneDegreesPropertiesSource *source,
+	propertiesSource *source,
 	const char *properties) {
 	fiftyoneDegreesPropertiesResults counter;
 	counter.count = 0;
@@ -166,8 +179,8 @@ static uint32_t countPropertiesFromString(
 }
 
 static uint32_t countPropertiesFromArray(
-	fiftyoneDegreesPropertiesSource *source,
-	const char **properties, 
+	propertiesSource *source,
+	const char **properties,
 	int count) {
 	fiftyoneDegreesPropertiesResults counter;
 	counter.count = 0;
@@ -181,7 +194,7 @@ static uint32_t countPropertiesFromArray(
 }
 
 static uint32_t countPropertiesFromExisting(
-	fiftyoneDegreesPropertiesSource *source,
+	propertiesSource *source,
 	fiftyoneDegreesPropertiesResults *properties) {
 	fiftyoneDegreesPropertiesResults counter;
 	counter.count = 0;
@@ -194,7 +207,7 @@ static uint32_t countPropertiesFromExisting(
 }
 
 static fiftyoneDegreesPropertiesResults* initRequiredPropertiesFromString(
-	fiftyoneDegreesPropertiesSource *source,
+	propertiesSource *source,
 	const char* properties) {
 	fiftyoneDegreesPropertiesResults *results;
 	uint32_t count = countPropertiesFromString(source, properties);
@@ -204,9 +217,9 @@ static fiftyoneDegreesPropertiesResults* initRequiredPropertiesFromString(
 	results = initRequiredPropertiesMemory(count, source);
 	if (results != NULL) {
 		iteratePropertiesFromString(
-			source, 
+			source,
 			results,
-			properties, 
+			properties,
 			addRequiredProperty);
 	}
 	return results;
@@ -214,10 +227,10 @@ static fiftyoneDegreesPropertiesResults* initRequiredPropertiesFromString(
 
 
 static fiftyoneDegreesPropertiesResults* initSpecificPropertiesFromExisting(
-	fiftyoneDegreesPropertiesSource *source,
+	propertiesSource *source,
 	fiftyoneDegreesPropertiesResults *properties) {
 	uint32_t count = countPropertiesFromExisting(source, properties);
-	fiftyoneDegreesPropertiesResults *results = 
+	fiftyoneDegreesPropertiesResults *results =
 		initRequiredPropertiesMemory(count, source);
 	if (results != NULL) {
 		iteratePropertiesFromExisting(
@@ -231,8 +244,8 @@ static fiftyoneDegreesPropertiesResults* initSpecificPropertiesFromExisting(
 
 
 static fiftyoneDegreesPropertiesResults* initSpecificPropertiesFromArray(
-	fiftyoneDegreesPropertiesSource *source,
-	char** properties,
+	propertiesSource *source,
+	const char** properties,
 	int propertyCount) {
 	uint32_t count = countPropertiesFromArray(source, properties, propertyCount);
 	fiftyoneDegreesPropertiesResults *results =
@@ -249,7 +262,7 @@ static fiftyoneDegreesPropertiesResults* initSpecificPropertiesFromArray(
 }
 
 static fiftyoneDegreesPropertiesResults* initAllProperties(
-	fiftyoneDegreesPropertiesSource *source) {
+	propertiesSource *source) {
 	uint32_t i;
 	fiftyoneDegreesPropertiesResults *results =
 		initRequiredPropertiesMemory(source->count, source);
@@ -262,7 +275,7 @@ static fiftyoneDegreesPropertiesResults* initAllProperties(
 }
 
 static void setPropertyNames(
-	fiftyoneDegreesPropertiesSource *source,
+	propertiesSource *source,
 	fiftyoneDegreesPropertiesResults *results) {
 	uint32_t i;
 	for (i = 0; i < results->count; i++) {
@@ -287,7 +300,7 @@ static void sortRequiredProperties(
 }
 
 static void initRequiredPropertyNames(
-	fiftyoneDegreesPropertiesSource *source,
+	propertiesSource *source,
 	fiftyoneDegreesPropertiesResults *results) {
 	uint32_t i;
 	fiftyoneDegreesString *string;
@@ -315,43 +328,53 @@ static int comparePropertyNamesAscendingSearch(const void *a, const void *b) {
 }
 
 fiftyoneDegreesPropertiesResults* fiftyoneDegreesPropertiesCreate(
-	fiftyoneDegreesPropertiesSource *source,
-	fiftyoneDegreesPropertiesRequired *properties) {
+	void *state,
+	uint32_t count,
+	fiftyoneDegreesPropertiesRequired *properties,
+	fiftyoneDegressPropertiesGet get,
+	void*(*malloc)(size_t),
+	void(*free)(void*)) {
+	propertiesSource source;
+	source.count = count;
+	source.state = state;
+	source.get = get;
+	source.malloc = malloc;
+	source.free = free;
 	fiftyoneDegreesPropertiesResults *results = NULL;
 	if (properties != NULL) {
 		if (properties->existing != NULL) {
 			// Use an existing list of properties.
 			results = initSpecificPropertiesFromExisting(
-				source, 
+				&source,
 				properties->existing);
 		}
 		else if (properties->array != NULL && properties->count > 0) {
 			// Set the required properties from the array.
 			results = initSpecificPropertiesFromArray(
-				source,
+				&source,
 				properties->array,
 				properties->count);
 		}
 		else if (properties->string != NULL) {
 			// Set the required properties from the comma separated string.
 			results = initRequiredPropertiesFromString(
-				source, 
+				&source,
 				properties->string);
 		}
 		else {
 			// Set all the properties as required properties.
-			results = initAllProperties(source);
+			results = initAllProperties(&source);
 		}
 	}
 	else {
 		// Set all the properties as required properties.
-		results = initAllProperties(source);
+		results = initAllProperties(&source);
 	}
 
 	// Set the require property name strings to match the require property
 	// index.
 	if (results != NULL) {
-		initRequiredPropertyNames(source, results);
+		initRequiredPropertyNames(&source, results);
 	}
 
 	return results;

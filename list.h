@@ -31,15 +31,14 @@ typedef struct fiftyoneDegrees_list_t {
 	fiftyoneDegreesCollectionItem *items; // Array of items
 	uint32_t capacity; // Capacity of the list to store items
 	uint32_t count; // Number of items currently in the list 
-	void *memoryToFree; // Memory used by items
-	fiftyoneDegreesCollection *collection;
+	void(*free)(void*); // Used to free memory.
 } fiftyoneDegreesList;
 
 fiftyoneDegreesList* fiftyoneDegreesListInit(
 	fiftyoneDegreesList *list,
-	fiftyoneDegreesCollection *collection,
 	int capacity,
-	void*(*malloc)(size_t __size));
+	void*(*malloc)(size_t __size),
+	void(*free)(void*));
 
 void fiftyoneDegreesListAdd(
 	fiftyoneDegreesList *list,
@@ -50,7 +49,5 @@ fiftyoneDegreesString* fiftyoneDegreesListGetAsString(
 	int index);
 
 void fiftyoneDegreesListFree(fiftyoneDegreesList *list);
-
-void fiftyoneDegreesListReset(fiftyoneDegreesList *list);
 
 #endif

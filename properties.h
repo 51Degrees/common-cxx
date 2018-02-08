@@ -50,31 +50,26 @@ typedef struct fiftyone_degrees_properties_results_t {
 } fiftyoneDegreesPropertiesResults;
 
 EXTERNAL typedef struct fiftyone_degrees_properties_required_t {
-	char **array; /* Array of required properties or NULL if all properties are
-				  required. See the count property for the number of items in
-				  the array */
+	const char **array; /* Array of required properties or NULL if all
+                        properties are required. See the count property for the
+                        number of items in the array */
 	int count; /* Number of properties in array */
 	char *string; /* Separated list of required properties or NULL if all
 				  properties are required */
 	fiftyoneDegreesPropertiesResults *existing; /* A pointer to an existing
-												set of property names from 
+												set of property names from
 												another data set instance */
 } fiftyoneDegreesPropertiesRequired;
-
-typedef struct fiftyone_degrees_properties_source_t {
-	uint32_t count; /* Number of properties available in the source */
-	void *state; /* State for the get method. Usually a data set */
-	fiftyoneDegressPropertiesGet get; /* Gets a property as a string from the
-									  source */
-	void*(*malloc)(size_t); /* Allocates memory for the results */
-	void(*free)(void*); /* Frees memory */
-} fiftyoneDegreesPropertiesSource;
 
 EXTERNAL fiftyoneDegreesPropertiesRequired fiftyoneDegreesPropertiesDefault;
 
 fiftyoneDegreesPropertiesResults* fiftyoneDegreesPropertiesCreate(
-	fiftyoneDegreesPropertiesSource *source,
-	fiftyoneDegreesPropertiesRequired *properties);
+	void *state,
+	uint32_t count,
+	fiftyoneDegreesPropertiesRequired *properties,
+	fiftyoneDegressPropertiesGet get,
+	void*(*malloc)(size_t),
+	void(*free)(void*));
 
 int fiftyoneDegreesPropertiesGetPropertyIndexFromName(
 	fiftyoneDegreesPropertiesResults *results,

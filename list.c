@@ -25,17 +25,17 @@
 
 fiftyoneDegreesList* fiftyoneDegreesListInit(
 	fiftyoneDegreesList *list,
-	fiftyoneDegreesCollection *collection,
 	int capacity,
-	void*(*malloc)(size_t __size)) {
+	void*(*malloc)(size_t __size),
+	void(*free)(void*)) {
 	list->items = (fiftyoneDegreesCollectionItem*)malloc(
 		capacity * sizeof(fiftyoneDegreesCollectionItem));
 	if (list->items == NULL) {
 		return NULL;
 	}
-	list->collection = collection;
 	list->capacity = capacity;
 	list->count = 0;
+	list->free = free;
 	return list;
 }
 
@@ -43,6 +43,7 @@ void fiftyoneDegreesListAdd(
 	fiftyoneDegreesList *list,
 	fiftyoneDegreesCollectionItem *item) {
 	assert(list->count < list->capacity);
+	assert(item->collection != NULL);
 	list->items[list->count++] = *item;
 }
 
@@ -56,19 +57,11 @@ void fiftyoneDegreesListFree(fiftyoneDegreesList *list) {
 	uint32_t i;
 	if (list->items != NULL) {
 		for (i = 0; i < list->count; i++) {
-			list->collection->release(&list->items[i]);
+			list->items[i].collection->release(&list->items[i]);
 		}
-		list->collection->freeMemory(list->items);
+		list->free(list->items);
 		list->items = NULL;
 		list->capacity = 0;
 		list->count = 0;
 	}
-}
-
-void fiftyoneDegreesListReset(fiftyoneDegreesList *list) {
-	list->items = NULL;
-	list->collection = NULL;
-	list->count = 0;
-	list->capacity = 0;
-	list->memoryToFree = NULL;
 }
