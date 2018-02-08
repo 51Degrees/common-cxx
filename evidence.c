@@ -325,10 +325,8 @@ fiftyoneDegreesEvidenceHeaderPrefix fiftyoneDegreesEvidenceMapPrefix(
 	const char *key) {
 	if (strncmp("header", key, 6) == 0) {
 		// todo check if known IP address header.
-		for (int i = 0; i < knownIpHeadersCount; i++) {
-			if (strcmp(key, "header.host") == 0) {
-				return FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_IP_ADDRESSES;
-			}
+		if (strcmp(key, "header.host") == 0) {
+			return FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_IP_ADDRESSES;
 		}
 		return FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING;
 	}
