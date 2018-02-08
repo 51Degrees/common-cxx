@@ -50,14 +50,14 @@ typedef struct fiftyone_degrees_properties_results_t {
 } fiftyoneDegreesPropertiesResults;
 
 EXTERNAL typedef struct fiftyone_degrees_properties_required_t {
-	char **array; /* Array of required properties or NULL if all properties are
-				  required. See the count property for the number of items in
-				  the array */
+	const char **array; /* Array of required properties or NULL if all
+                        properties are required. See the count property for the
+                        number of items in the array */
 	int count; /* Number of properties in array */
 	char *string; /* Separated list of required properties or NULL if all
 				  properties are required */
 	fiftyoneDegreesPropertiesResults *existing; /* A pointer to an existing
-												set of property names from 
+												set of property names from
 												another data set instance */
 } fiftyoneDegreesPropertiesRequired;
 

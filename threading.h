@@ -108,7 +108,7 @@ int fiftyoneDegreesSignalValid(fiftyoneDegreesSignal *signal);
 #ifdef _MSC_VER
 #define FIFTYONEDEGREES_SIGNAL_CREATE(s) s = fiftyoneDegreesSignalCreate()
 #else
-#define FIFTYONEDEGREES_SIGNAL_CREATE(s) fiftyoneDegreesSignalCreate(&s)
+#define FIFTYONEDEGREES_SIGNAL_CREATE(s) fiftyoneDegreesSignalCreate(s)
 #endif
 
 /**
@@ -117,7 +117,7 @@ int fiftyoneDegreesSignalValid(fiftyoneDegreesSignal *signal);
 #ifdef _MSC_VER
 #define FIFTYONEDEGREES_SIGNAL_CLOSE(s) fiftyoneDegreesSignalClose(s)
 #else
-#define FIFTYONEDEGREES_SIGNAL_CLOSE(s) fiftyoneDegreesSignalClose(&s)
+#define FIFTYONEDEGREES_SIGNAL_CLOSE(s) fiftyoneDegreesSignalClose(s)
 #endif
 
 /**
@@ -126,7 +126,7 @@ int fiftyoneDegreesSignalValid(fiftyoneDegreesSignal *signal);
 #ifdef _MSC_VER
 #define FIFTYONEDEGREES_SIGNAL_SET(s) fiftyoneDegreesSignalSet(s)
 #else
-#define FIFTYONEDEGREES_SIGNAL_SET(s) fiftyoneDegreesSignalSet(&s)
+#define FIFTYONEDEGREES_SIGNAL_SET(s) fiftyoneDegreesSignalSet(s)
 #endif
 
 /**
@@ -135,7 +135,7 @@ int fiftyoneDegreesSignalValid(fiftyoneDegreesSignal *signal);
 #ifdef _MSC_VER
 #define FIFTYONEDEGREES_SIGNAL_WAIT(s) fiftyoneDegreesSignalWait(s)
 #else
-#define FIFTYONEDEGREES_SIGNAL_WAIT(s) fiftyoneDegreesSignalWait(&s)
+#define FIFTYONEDEGREES_SIGNAL_WAIT(s) fiftyoneDegreesSignalWait(s)
 #endif
 
 /**
@@ -144,7 +144,7 @@ int fiftyoneDegreesSignalValid(fiftyoneDegreesSignal *signal);
 #ifdef _MSC_VER
 #define FIFTYONEDEGREES_SIGNAL_VALID(s) fiftyoneDegreesSignalValid(s)
 #else
-#define FIFTYONEDEGREES_SIGNAL_VALID(s) fiftyoneDegreesSignalValid(&s)
+#define FIFTYONEDEGREES_SIGNAL_VALID(s) fiftyoneDegreesSignalValid(s)
 #endif
 
 /**

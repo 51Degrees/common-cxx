@@ -29,7 +29,7 @@ static const void* setResource(
 	fiftyoneDegreesProviderResourceHandle *tracker;
 
 	// Create a new active wrapper for the provider.
-	tracker = (fiftyoneDegreesProviderResourceHandle*)malloc(
+	tracker = (fiftyoneDegreesProviderResourceHandle*)provider->malloc(
 		sizeof(fiftyoneDegreesProviderResourceHandle));
 	if (tracker != NULL) {
 
@@ -117,7 +117,7 @@ void fiftyoneDegreesProviderDecUse(fiftyoneDegreesProviderResourceHandle *tracke
 const void* fiftyoneDegreesProviderReplace(
 	fiftyoneDegreesProvider *provider,
 	const void *newResource) {
-	fiftyoneDegreesProviderResourceHandle *existing = 
+	fiftyoneDegreesProviderResourceHandle *existing =
 		(fiftyoneDegreesProviderResourceHandle*)provider->active;
 
 #ifndef FIFTYONEDEGREES_NO_THREADING
