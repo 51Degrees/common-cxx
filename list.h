@@ -27,6 +27,12 @@
 #ifndef FIFTYONEDEGREES_LIST_H_INCLUDED
 #define FIFTYONEDEGREES_LIST_H_INCLUDED
 
+#ifdef __cplusplus
+#define EXTERNAL extern "C"
+#else
+#define EXTERNAL
+#endif
+
 typedef struct fiftyoneDegrees_list_t {
 	fiftyoneDegreesCollectionItem *items; // Array of items
 	uint32_t capacity; // Capacity of the list to store items
@@ -34,20 +40,20 @@ typedef struct fiftyoneDegrees_list_t {
 	void(*free)(void*); // Used to free memory.
 } fiftyoneDegreesList;
 
-fiftyoneDegreesList* fiftyoneDegreesListInit(
+EXTERNAL fiftyoneDegreesList* fiftyoneDegreesListInit(
 	fiftyoneDegreesList *list,
 	int capacity,
 	void*(*malloc)(size_t __size),
 	void(*free)(void*));
 
-void fiftyoneDegreesListAdd(
+EXTERNAL void fiftyoneDegreesListAdd(
 	fiftyoneDegreesList *list,
 	fiftyoneDegreesCollectionItem *item);
 
-fiftyoneDegreesString* fiftyoneDegreesListGetAsString(
+EXTERNAL fiftyoneDegreesString* fiftyoneDegreesListGetAsString(
 	fiftyoneDegreesList *list,
 	int index);
 
-void fiftyoneDegreesListFree(fiftyoneDegreesList *list);
+EXTERNAL void fiftyoneDegreesListFree(fiftyoneDegreesList *list);
 
 #endif

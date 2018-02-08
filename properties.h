@@ -63,7 +63,7 @@ EXTERNAL typedef struct fiftyone_degrees_properties_required_t {
 
 EXTERNAL fiftyoneDegreesPropertiesRequired fiftyoneDegreesPropertiesDefault;
 
-fiftyoneDegreesPropertiesResults* fiftyoneDegreesPropertiesCreate(
+EXTERNAL fiftyoneDegreesPropertiesResults* fiftyoneDegreesPropertiesCreate(
 	void *state,
 	uint32_t count,
 	fiftyoneDegreesPropertiesRequired *properties,
@@ -71,22 +71,24 @@ fiftyoneDegreesPropertiesResults* fiftyoneDegreesPropertiesCreate(
 	void*(*malloc)(size_t),
 	void(*free)(void*));
 
-int fiftyoneDegreesPropertiesGetPropertyIndexFromName(
+EXTERNAL int fiftyoneDegreesPropertiesGetPropertyIndexFromName(
 	fiftyoneDegreesPropertiesResults *results,
 	const char *propertyName);
 
-int fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(
+EXTERNAL int fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(
 	fiftyoneDegreesPropertiesResults *results,
 	const char *propertyName);
 
-int fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex(
+EXTERNAL int fiftyoneDegreesPropertiesGetPropertyIndexFromRequiredIndex(
 	fiftyoneDegreesPropertiesResults *results,
 	int requiredPropertyIndex);
 
-fiftyoneDegreesString* fiftyoneDegreesPropertiesGetNameFromRequiredIndex(
+EXTERNAL fiftyoneDegreesString* 
+	fiftyoneDegreesPropertiesGetNameFromRequiredIndex(
 	fiftyoneDegreesPropertiesResults *results,
 	int requiredPropertyIndex);
 
-void fiftyoneDegreesPropertiesFree(fiftyoneDegreesPropertiesResults *results);
+EXTERNAL void fiftyoneDegreesPropertiesFree(
+	fiftyoneDegreesPropertiesResults *results);
 
 #endif
