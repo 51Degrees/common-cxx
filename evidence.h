@@ -120,6 +120,10 @@ EXTERNAL int fiftyoneDegreesEvidenceIterate(
 	fiftyoneDegreesEvidenceCompare compareMethod,
 	fiftyoneDegreesEvidenceMatched matchedMethod);
 
-EXTERNAL fiftyoneDegreesEvidenceHeaderPrefix fiftyoneDegreesEvidenceMapPrefix(const char *prefix);
+EXTERNAL fiftyoneDegreesEvidenceHeaderPrefix fiftyoneDegreesEvidenceMapPrefix(const char *evidence);
 
+EXTERNAL fiftyoneDegreesEvidenceIpAddress* parseIpAddress(
+	fiftyoneDegreesEvidenceCollection *evidence,
+	const char *start,
+	const char *end);
 #endif

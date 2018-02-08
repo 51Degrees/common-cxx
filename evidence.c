@@ -22,38 +22,72 @@
 ********************************************************************** */
 
 #include "evidence.h"
+#include "string.h"
 
 typedef int(*parseIterator)(
 	void *state,
-	void *segment);
+	fiftyoneDegreesEvidenceIpType type,
+	const char *start,
+	const char *end);
 
 /**
  * State is an integer which is increased everytime the method is called.
  */
-static int callbackIpAddressCount(void *state, fiftyoneDegreesEvidenceIpType type, const char *start) {
-	if (type = FIFTYONEDEGREES_EVIDENCE_IP_TYPE_INVALID) {
-		*((int*)state)++;
+static int callbackIpAddressCount(void *state, fiftyoneDegreesEvidenceIpType type, const char *start, const char *end) {
+	if (type != FIFTYONEDEGREES_EVIDENCE_IP_TYPE_INVALID) {
+		(*(int*)state)++;
 		if (type == FIFTYONEDEGREES_EVIDENCE_IP_TYPE_IPV6) {
-			*((int*)state)++;
+			(*(int*)state)++;
 		}
 	}
 }
 
-static byte parseIpV6Byte(const char *start) {
-	// TODO - implement
+//static byte parseIpV6Byte(const char *start) {
+//	int i;
+//	char hexChars[3];
+//	hexChars[2] = '\0';
+//	for (i = 0; i < 2; i++) {
+//		hexChars[i] = start[i];
+//	}
+//	return (byte)strtol(hexChars, NULL, 16);
+//}
+static void parseIpV6Segment(
+	fiftyoneDegreesEvidenceIpAddress *address,
+	const char *start,
+	const char *end) {
+	int i;
+	char first[3], second[3];
+	first[2] = '\0';
+	second[2] = '\0';
+	char val;
+	for (i = 0; i < 4; i++) {
+		if (end - i >= start) val = end[-i];
+		else val = '0';
+
+		if (i < 2) second[1 - i] = val;
+		else first[3 - i] = val;
+	}
+	*address->current = (byte)strtol(first, NULL, 16);
+	address->current++;
+	*address->current = (byte)strtol(second, NULL, 16);
+	address->current++;
+
 }
 
-static int callbackIpAddressBuild(void *state, fiftyoneDegreesEvidenceIpType type, const char *start) {
+static int callbackIpAddressBuild(void *state, fiftyoneDegreesEvidenceIpType type, const char *start, const char *end) {
 	fiftyoneDegreesEvidenceIpAddress *address = (fiftyoneDegreesEvidenceIpAddress*)state;
 	if (type == FIFTYONEDEGREES_EVIDENCE_IP_TYPE_IPV4) {
-		*address->next = atoi(start);
-		address->next++;
+		*address->current = atoi(start);
+		address->current++;
 	}
 	else if (type == FIFTYONEDEGREES_EVIDENCE_IP_TYPE_IPV6) {
-		*address->next = parseIpV6Byte(start);
-		address->next++;
-		*address->next = parseIpV6Byte(start + 2);
-		address->next++;
+		/*
+		*address->current = parseIpV6Byte(start);
+		address->current++;
+		*address->current = parseIpV6Byte(start + 2);
+		address->current++;
+		*/
+		parseIpV6Segment(address, start, end);
 	}
 }
 
@@ -77,35 +111,33 @@ static fiftyoneDegreesEvidenceIpType iterateIpAddress(
 	const char *end, 
 	void *state, 
 	fiftyoneDegreesEvidenceIpType type,
-	parseIterator foundByte) {
+	parseIterator foundSegment) {
 	const char *current = start;
-	const char *nextByte = current;
-	while (current != NULL) {
+	const char *nextSegment = current;
+	while (current <= end) {
 		if (*current == ',' ||
 			*current == ':' ||
-			*current == '.') {
+			*current == '.' ||
+			*current == ' ' ||
+			*current == NULL) {
 			if (type == FIFTYONEDEGREES_EVIDENCE_IP_TYPE_INVALID) {
 				type = getIpTypeFromSeparator(*current);
 			}
-			foundByte(state, type, nextByte);
-			nextByte = current++;
-
+			foundSegment(state, type, nextSegment, current - 1);
+			nextSegment = current + 1;
 		}
 		current++;
-		// TODO - work out when a new full byte has been found and call foundByte. BEN
-		foundByte(state, current); // THIS IS WRONG AND NEEDS CHANGING. BEN
 	}
 	return type;
 }
 
-static fiftyoneDegreesEvidenceIpAddress* parseIpAddress(
+fiftyoneDegreesEvidenceIpAddress* parseIpAddress(
 	fiftyoneDegreesEvidenceCollection *evidence, 
 	const char *start,
-	const char *end,
-	fiftyoneDegreesEvidenceIpType type) {
-	int count;
+	const char *end) {
+	int count = 0;
 	fiftyoneDegreesEvidenceIpAddress *address;
-	fiftyoneDegreesEvidenceIpType = iterateIpAddress(
+	fiftyoneDegreesEvidenceIpType type = iterateIpAddress(
 		start,
 		end,
 		&count,
@@ -120,7 +152,7 @@ static fiftyoneDegreesEvidenceIpAddress* parseIpAddress(
 		// space to make this available.
 		address->address = (byte*)(address + 1);
 		// Set the next byte to be added during the parse operation.
-		address->next = (byte*)(address + 1);
+		address->current = (byte*)(address + 1);
 		// Add the bytes from the source value and get the type of address.
 		address->type = iterateIpAddress(
 			start,
@@ -128,6 +160,7 @@ static fiftyoneDegreesEvidenceIpAddress* parseIpAddress(
 			address,
 			type,
 			callbackIpAddressBuild);
+		address->next = NULL;
 	}
 	return address;
 }
@@ -140,11 +173,10 @@ static fiftyoneDegreesEvidenceIpAddress* parseIpAddresses(
 	fiftyoneDegreesEvidenceIpAddress *head = NULL;
 	fiftyoneDegreesEvidenceIpAddress *last = NULL;
 	fiftyoneDegreesEvidenceIpAddress *item = NULL;
-	fiftyoneDegreesEvidenceIpType type = FIFTYONEDEGREES_EVIDENCE_IP_TYPE_INVALID;
 	while (current != NULL) {
 		if (current == ' ') {
 			// We have reached the end of a probable IP address.
-			item = parseIpAddress(evidence, start, current - 1, type);
+			item = parseIpAddress(evidence, start, current - 1);
 			if (item != NULL) {
 				if (last == NULL && head == NULL) {
 					// Add the first item to the list.
@@ -169,11 +201,22 @@ static void parsePair(
 	fiftyoneDegreesEvidenceCollection *evidence,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	switch (pair->prefix) {
-	case FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_IP_ADDRESSES:
-		parseIpAddresses(evidence, pair);
-		break;
 	case FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING:
+		if (strcmp("host", pair->field) == 0) {
+			parseIpAddresses(evidence, pair);
+		}
+		else {
+			pair->parsedValue = pair->originalValue;
+		}
+		break;
 	case FIFTYONEDEGREES_EVIDENCE_SERVER:
+		if (strcmp("client-ip", pair->field) == 0) {
+			parseIpAddresses(evidence, pair);
+		}
+		else {
+			pair->parsedValue = pair->originalValue;
+		}
+		break;
 	case FIFTYONEDEGREES_EVIDENCE_COOKIES:
 	default:
 		pair->parsedValue = pair->originalValue;
@@ -200,10 +243,13 @@ fiftyoneDegreesEvidenceCollection* fiftyoneDegreesEvidenceCreate(
 
 static void freeIpAddresses(
 	fiftyoneDegreesEvidenceCollection *evidence,
-	fiftyoneDegreesEvidenceIpAddresses *addresses) {
-	int i;
-	for (i = 0; i < addresses->count; i++) {
-		evidence->free(addresses->items[i].address);
+	fiftyoneDegreesEvidenceIpAddress *addresses) {
+	fiftyoneDegreesEvidenceIpAddress *current = addresses;
+	fiftyoneDegreesEvidenceIpAddress *prev;
+	while (current != NULL) {
+		prev = current;
+		current = current->next;
+		evidence->free(prev->address);
 	}
 }
 
@@ -220,7 +266,7 @@ void fiftyoneDegreesEvidenceFree(
 				// Free the memory for each IP address.
 				freeIpAddresses(
 					evidence, 
-					(fiftyoneDegreesEvidenceIpAddresses*)pair->parsedValue);
+					(fiftyoneDegreesEvidenceIpAddress*)pair->parsedValue);
 				break;
 			case FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING:
 			case FIFTYONEDEGREES_EVIDENCE_SERVER:
@@ -276,15 +322,20 @@ int fiftyoneDegreesEvidenceIterate(
 }
 
 fiftyoneDegreesEvidenceHeaderPrefix fiftyoneDegreesEvidenceMapPrefix(
-	const char *prefix) {
-	if (strcmp("header", prefix) == 0) {
+	const char *key) {
+	if (strncmp("header", key, 6) == 0) {
 		// todo check if known IP address header.
+		for (int i = 0; i < knownIpHeadersCount; i++) {
+			if (strcmp(key, "header.host") == 0) {
+				return FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_IP_ADDRESSES;
+			}
+		}
 		return FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING;
 	}
-	if (strcmp("server", prefix) == 0) {
+	if (strncmp("server", key, 6) == 0) {
 		return FIFTYONEDEGREES_EVIDENCE_SERVER;
 	}
-	if (strcmp("cookie", prefix) == 0) {
+	if (strncmp("cookie", key, 6) == 0) {
 		return FIFTYONEDEGREES_EVIDENCE_COOKIES;
 	}
 }
