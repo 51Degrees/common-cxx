@@ -171,10 +171,13 @@ fiftyoneDegreesEvidenceIpAddress* parseIpAddresses(
 	fiftyoneDegreesEvidenceIpAddress *head = NULL;
 	fiftyoneDegreesEvidenceIpAddress *last = NULL;
 	fiftyoneDegreesEvidenceIpAddress *item = NULL;
-	while (current != NULL) {
-		if (current == ' ') {
+	while (*current != '\0') {
+		current++;
+		if (*current == ' ' ||
+		    *current == ',' ||
+		    *current == '\0') {
 			// We have reached the end of a probable IP address.
-			item = parseIpAddress(malloc, start, current - 1);
+			item = parseIpAddress(malloc, start, current);
 			if (item != NULL) {
 				if (last == NULL && head == NULL) {
 					// Add the first item to the list.
@@ -188,9 +191,8 @@ fiftyoneDegreesEvidenceIpAddress* parseIpAddresses(
 				}
 				item->next = NULL;
 			}
-			start = current;
+			start = current + 1;
 		}
-		current++;
 	}
 	return head;
 }
