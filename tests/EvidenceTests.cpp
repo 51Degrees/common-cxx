@@ -96,7 +96,7 @@ TEST(Evidence, Iterate_String_AlreadyParsed)
 		FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING,
 		"some-header-name",
 		"some-header-value");
-	evidence->items[0].parsedValue == parsedValue;
+	evidence->items[0].parsedValue = parsedValue;
 
 	fiftyoneDegreesEvidenceIterate(evidence,
 		NULL,
