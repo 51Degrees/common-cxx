@@ -3,10 +3,6 @@
 
 
 
-TEST(Evidence, Map_HttpHeaderPrefix) {
-    fiftyoneDegreesEvidenceHeaderPrefix prefix = fiftyoneDegreesEvidenceMapPrefix("header");
-    EXPECT_EQ((int)prefix, (int)FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING);
-}
 
 void assertStringHeaderAdded(
 	fiftyoneDegreesEvidenceKeyValuePair *pair,
@@ -14,12 +10,15 @@ void assertStringHeaderAdded(
 	const char *expectedValue) {
 	EXPECT_EQ((int)pair->prefix, (int)FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING) <<
 		L"Expected 'header' prefix.";
-	EXPECT_TRUE(strcmp(pair->field, expectedField) == 0) <<
+	EXPECT_STREQ(pair->field, expectedField) <<
 		L"Expected name '" << expectedField << "' not '" << pair->field << "'";
 	EXPECT_TRUE(strcmp((const char*)pair->originalValue, expectedValue) == 0) <<
 		L"Expected value '" << expectedValue << "' not '" << pair->originalValue << "'";
 }
 
+/*
+Check that a single string can be added to evidence.
+*/
 TEST(Evidence, Add_SingleString) {
 
 	fiftyoneDegreesEvidenceCollection *evidence = fiftyoneDegreesEvidenceCreate(1, malloc, free);
@@ -31,6 +30,9 @@ TEST(Evidence, Add_SingleString) {
 	assertStringHeaderAdded(&evidence->items[0], "some-header-name", "some-header-value");
 }
 
+/*
+Check that multiple strings can be added to evidence.
+*/
 TEST(Evidence, Add_MultipleStrings)
 {
 	fiftyoneDegreesEvidenceCollection *evidence = fiftyoneDegreesEvidenceCreate(2, malloc, free);
@@ -63,7 +65,9 @@ int onMatchIterateString(void *state, fiftyoneDegreesEvidenceKeyValuePair *pair)
 		(const char*)pair->parsedValue << "'";
 	return 0;
 }
-
+/*
+Check that the parsed version of a string evidence value will be the same string.
+*/
 TEST(Evidence, Iterate_String)
 {
 	fiftyoneDegreesEvidenceCollection *evidence = fiftyoneDegreesEvidenceCreate(1, malloc, free);
@@ -72,13 +76,14 @@ TEST(Evidence, Iterate_String)
 		FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING,
 		"some-header-name",
 		"some-header-value");
-	evidence->items[0].parsedValue == NULL;
+	evidence->items[0].parsedValue = NULL;
 
 	fiftyoneDegreesEvidenceIterate(evidence,
 		NULL,
 		matchIterateSomeHeader,
 		onMatchIterateString);
 }
+
 
 char* parsedValue = "already-parsed";
 int onMatchIterateStringAlreadyParsed(void *state, fiftyoneDegreesEvidenceKeyValuePair *pair)
@@ -88,6 +93,9 @@ int onMatchIterateStringAlreadyParsed(void *state, fiftyoneDegreesEvidenceKeyVal
 		(const char*)pair->parsedValue << "'";
 	return 0;
 }
+/*
+Check that an evidence value is not parsed again if it has already been parsed.
+*/
 TEST(Evidence, Iterate_String_AlreadyParsed)
 {
 	fiftyoneDegreesEvidenceCollection *evidence = fiftyoneDegreesEvidenceCreate(1, malloc, free);

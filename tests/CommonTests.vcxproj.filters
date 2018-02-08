@@ -43,6 +43,8 @@
     <ClCompile Include="..\ip.c">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="IpHeaderParserTests.cpp" />
+    <ClCompile Include="PropertiesTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />

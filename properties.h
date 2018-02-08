@@ -36,7 +36,7 @@
 #define EXTERNAL
 #endif
 
-typedef fiftyoneDegreesString*(*fiftyoneDegressPropertiesGet)(
+typedef fiftyoneDegreesString*(*fiftyoneDegreesPropertiesGet)(
 	void *state,
 	uint32_t index,
 	fiftyoneDegreesCollectionItem *item);
@@ -67,7 +67,7 @@ fiftyoneDegreesPropertiesResults* fiftyoneDegreesPropertiesCreate(
 	void *state,
 	uint32_t count,
 	fiftyoneDegreesPropertiesRequired *properties,
-	fiftyoneDegressPropertiesGet get,
+	fiftyoneDegreesPropertiesGet get,
 	void*(*malloc)(size_t),
 	void(*free)(void*));
 

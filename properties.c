@@ -33,7 +33,7 @@ fiftyoneDegreesPropertiesRequired fiftyoneDegreesPropertiesDefault = {
 typedef struct properties_source_t {
 	uint32_t count; /* Number of properties available in the source */
 	void *state; /* State for the get method. Usually a data set */
-	fiftyoneDegressPropertiesGet get; /* Gets a property as a string from the
+	fiftyoneDegreesPropertiesGet get; /* Gets a property as a string from the
 									  source */
 	void*(*malloc)(size_t); /* Allocates memory for the results */
 	void(*free)(void*); /* Frees memory */
@@ -331,7 +331,7 @@ fiftyoneDegreesPropertiesResults* fiftyoneDegreesPropertiesCreate(
 	void *state,
 	uint32_t count,
 	fiftyoneDegreesPropertiesRequired *properties,
-	fiftyoneDegressPropertiesGet get,
+	fiftyoneDegreesPropertiesGet get,
 	void*(*malloc)(size_t),
 	void(*free)(void*)) {
 	propertiesSource source;
