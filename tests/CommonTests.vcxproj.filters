@@ -1,0 +1,97 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="EvidenceTests.cpp" />
+    <ClCompile Include="..\evidence.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\cache.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\collection.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\data.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\file.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\headers.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\list.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\memory.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\properties.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\providerc.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\string.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\threading.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="IpParserTests.cpp" />
+    <ClCompile Include="..\ip.c">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="..\evidence.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\cache.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\collection.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\data.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\file.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\headers.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\list.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\memory.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\properties.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\providerc.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\string.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\threading.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ip.h">
+      <Filter>src</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{7c64b18b-124f-4762-a4d5-8b9da5142502}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
