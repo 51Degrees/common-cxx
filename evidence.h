@@ -28,6 +28,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include "ip.h"
+
 #ifdef __cplusplus
 #define EXTERNAL extern "C"
 #else
@@ -42,23 +44,6 @@ typedef enum e_fiftyone_degrees_evidence_header_prefix {
 	FIFTYONEDEGREES_EVIDENCE_SERVER = 2,
 	FIFTYONEDEGREES_EVIDENCE_COOKIES = 3
 } fiftyoneDegreesEvidenceHeaderPrefix;
-
-typedef enum e_fiftyone_degrees_evidence_ip_type {
-	FIFTYONEDEGREES_EVIDENCE_IP_TYPE_IPV4 = 0,
-	FIFTYONEDEGREES_EVIDENCE_IP_TYPE_IPV6 = 1,
-	FIFTYONEDEGREES_EVIDENCE_IP_TYPE_INVALID = 2,
-} fiftyoneDegreesEvidenceIpType;
-
-typedef struct fiftyone_degrees_evidence_ip_address fiftyoneDegreesEvidenceIpAddress;
-
-typedef struct fiftyone_degrees_evidence_ip_address {
-	fiftyoneDegreesEvidenceIpType type;
-	byte *address; // The first byte of the address
-	byte *current; // When building the address the next byte to update
-	fiftyoneDegreesEvidenceIpAddress *next; // Next address in the list
-	// const char *originalStart; // The first character for the IP address - TODO add optimisation
-	// const char *originalEnd; // The last character for the IP addresses
-} fiftyoneDegreesEvidenceIpAddress;
 
 typedef struct fiftyone_degrees_evidence_key_value_pair {
 	fiftyoneDegreesEvidenceHeaderPrefix prefix; // e.g. FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER
@@ -122,8 +107,4 @@ EXTERNAL int fiftyoneDegreesEvidenceIterate(
 
 EXTERNAL fiftyoneDegreesEvidenceHeaderPrefix fiftyoneDegreesEvidenceMapPrefix(const char *evidence);
 
-EXTERNAL fiftyoneDegreesEvidenceIpAddress* parseIpAddress(
-	fiftyoneDegreesEvidenceCollection *evidence,
-	const char *start,
-	const char *end);
 #endif
