@@ -111,3 +111,30 @@ TEST(Evidence, Iterate_String_AlreadyParsed)
 		matchIterateSomeHeader,
 		onMatchIterateStringAlreadyParsed);
 }
+TEST(Evidence, Parse_MultipleStringSingleImportant)
+{
+
+	fiftyoneDegreesEvidenceCollection *evidence = fiftyoneDegreesEvidenceCreate(2, malloc, free);
+	fiftyoneDegreesEvidenceAddString(
+		evidence,
+		FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING,
+		"some-header-name",
+		"some-header-value");
+	fiftyoneDegreesEvidenceAddString(
+		evidence,
+		FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING,
+		"some-other-header-name",
+		"some-header-value");
+
+	fiftyoneDegreesEvidenceIterate(evidence,
+		NULL,
+		matchIterateSomeHeader,
+		onMatchIterateString);
+
+	EXPECT_STREQ((const char*)evidence->items[0].originalValue,
+		(const char*)evidence->items[0].parsedValue) <<
+		L"Expected name '" << (const char*)evidence->items[0].originalValue << "' not '" <<
+		(const char*)evidence->items[0].parsedValue << "'";
+	EXPECT_EQ(0, (int)evidence->items[1].parsedValue) <<
+		L"Expected '" << (const char*)evidence->items[1].originalValue << "' not to be parsed";
+}
