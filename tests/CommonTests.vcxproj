@@ -47,6 +47,7 @@
     <ClInclude Include="..\string.h" />
     <ClInclude Include="..\threading.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="StringCollectionTestBase.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\cache.c">
@@ -88,6 +89,7 @@
     <ClCompile Include="..\threading.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="StringCollectionTestBase.cpp" />
     <ClCompile Include="EvidenceTests.cpp" />
     <ClCompile Include="IpHeaderParserTests.cpp" />
     <ClCompile Include="IpParserTests.cpp" />

@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "StringCollectionTestBase.h"
 extern "C" {
 	#include "../properties.h"
 }
@@ -18,12 +19,6 @@ const char* testValues[] = {
 	"White"
 };
 
-typedef struct fiftyone_degrees_test_properties_state {
-	fiftyoneDegreesCollection *collection;
-	uint32_t *offsets;
-	void *data;
-} fiftyoneDegreesTestPropertiesState;
-
 // Function used to return property names when the properties code 
 // requests them
 fiftyoneDegreesString* getProperty(
@@ -31,7 +26,7 @@ fiftyoneDegreesString* getProperty(
 	uint32_t index,
 	fiftyoneDegreesCollectionItem *item)
 {
-	fiftyoneDegreesTestPropertiesState *strings = (fiftyoneDegreesTestPropertiesState*)state;
+	fiftyoneDegreesTestCollectionState *strings = (fiftyoneDegreesTestCollectionState*)state;
 	fiftyoneDegreesString *result = NULL;
 	strings->collection->get(strings->collection, strings->offsets[index], item);
 	item->collection = strings->collection;
@@ -40,10 +35,10 @@ fiftyoneDegreesString* getProperty(
 
 // Class that sets up the properties structure. This stops us having to 
 // do it multiple times.
-class PropertiesTest_SimpleSetup: public ::testing::Test
+class PropertiesTest: public StringCollectionTestBase
 {
 protected:
-	fiftyoneDegreesTestPropertiesState state;
+	fiftyoneDegreesTestCollectionState state;
 	int count;
 
 	void SetUp() {
@@ -65,49 +60,10 @@ protected:
 			malloc,
 			free);
 	}
-
-private:
-
-	void freeState(fiftyoneDegreesTestPropertiesState *state) {
-		free(state->offsets);
-		free(state->data);
-	}
-
-	fiftyoneDegreesTestPropertiesState buildState(const char **values, int count) {
-		fiftyoneDegreesTestPropertiesState state;
-		int i;
-		fiftyoneDegreesMemoryReader reader;
-		size_t dataLength = 0;
-		for (i = 0; i < count; i++) {
-			dataLength += 2 + strlen(values[i]) + 1;
-		}
-		reader.length = dataLength + sizeof(uint32_t);
-		state.data = malloc(reader.length);
-		*(int32_t*)state.data = dataLength;
-		state.offsets = (uint32_t*)malloc(count * sizeof(uint32_t));
-		byte *start = ((byte*)state.data) + sizeof(uint32_t);
-		reader.current = start;
-		for (i = 0; i < count; i++) {
-			fiftyoneDegreesString *string = (fiftyoneDegreesString*)reader.current;
-			string->size = (int16_t)strlen(values[i]) + 1;
-			strncpy(&string->value, values[i], string->size);
-			state.offsets[i] = reader.current - start;
-			reader.current += 2 + string->size;
-		}
-		reader.lastByte = reader.current;
-		reader.current = (byte*)state.data;
-		state.collection = fiftyoneDegreesCollectionCreateFromMemory(
-			&reader,
-			0,
-			0,
-			malloc);
-		assert(state.collection->size == dataLength);
-		return state;
-	}
 };
 
 // Test that the property names are present at the expected indicies
-TEST_F(PropertiesTest_SimpleSetup, PropertyIndicies) {
+TEST_F(PropertiesTest, PropertyIndicies) {
 	fiftyoneDegreesPropertiesResults *properties = BuildProperties(NULL);
 	for (int i = 0; i < count; i++) {
 		int reqIndex = fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(properties, testValues[i]);
@@ -118,7 +74,7 @@ TEST_F(PropertiesTest_SimpleSetup, PropertyIndicies) {
 	fiftyoneDegreesPropertiesFree(properties);
 }
 
-TEST_F(PropertiesTest_SimpleSetup, OneMissingProperty) {
+TEST_F(PropertiesTest, OneMissingProperty) {
 	fiftyoneDegreesPropertiesRequired required;
 	required.string = "Yellow,Beige";
 	required.array = NULL;
@@ -135,7 +91,7 @@ TEST_F(PropertiesTest_SimpleSetup, OneMissingProperty) {
 	fiftyoneDegreesPropertiesFree(properties);
 }
 
-TEST_F(PropertiesTest_SimpleSetup, StringTwoPropertiesOrdered) {
+TEST_F(PropertiesTest, StringTwoPropertiesOrdered) {
 	fiftyoneDegreesPropertiesRequired required;
 	required.string = "Yellow,Black";
 	required.array = NULL;
@@ -147,7 +103,7 @@ TEST_F(PropertiesTest_SimpleSetup, StringTwoPropertiesOrdered) {
 	fiftyoneDegreesPropertiesFree(properties);
 }
 
-TEST_F(PropertiesTest_SimpleSetup, ArrayTwoPropertiesOrdered) {
+TEST_F(PropertiesTest, ArrayTwoPropertiesOrdered) {
 	const char* tests[] = { "Yellow", "Black" };
 	fiftyoneDegreesPropertiesRequired required;
 	required.string = NULL;
