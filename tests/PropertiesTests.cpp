@@ -5,10 +5,6 @@ extern "C" {
 }
 
 // Property names
-const char* p0 = "BP";
-const char* p1 = "AProperty";
-const char* p2 = "CPropertyWithAReallyQuiteLongName";
-
 const char* testValues[] = {
 	"Red",
 	"Yellow",
@@ -33,7 +29,7 @@ fiftyoneDegreesString* getProperty(
 	return (fiftyoneDegreesString*)item->data.ptr;
 }
 
-// Class that sets up the properties structure. This stops us having to 
+// Class that sets up the properties test structure. This stops us having to 
 // do it multiple times.
 class PropertiesTest: public StringCollectionTestBase
 {
@@ -44,7 +40,6 @@ protected:
 	void SetUp() {
 		count = sizeof(testValues) / sizeof(const char*);
 		state = buildState(testValues, count);
-
 	}
 	void TearDown() {
 		freeState(&state);
@@ -62,8 +57,11 @@ protected:
 	}
 };
 
-// Test that the property names are present at the expected indicies
-TEST_F(PropertiesTest, PropertyIndicies) {
+
+/**
+ * Check that all the properties are present as expected.
+ */
+TEST_F(PropertiesTest, AllProperties) {
 	fiftyoneDegreesPropertiesResults *properties = BuildProperties(NULL);
 	for (int i = 0; i < count; i++) {
 		int reqIndex = fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(properties, testValues[i]);
@@ -74,6 +72,9 @@ TEST_F(PropertiesTest, PropertyIndicies) {
 	fiftyoneDegreesPropertiesFree(properties);
 }
 
+/**
+* Check that all the properties are present as expected.
+*/
 TEST_F(PropertiesTest, OneMissingProperty) {
 	fiftyoneDegreesPropertiesRequired required;
 	required.string = "Yellow,Beige";
@@ -103,6 +104,18 @@ TEST_F(PropertiesTest, StringTwoPropertiesOrdered) {
 	fiftyoneDegreesPropertiesFree(properties);
 }
 
+TEST_F(PropertiesTest, StringTwoPropertiesOrderedSpace) {
+	fiftyoneDegreesPropertiesRequired required;
+	required.string = "Yellow, Black";
+	required.array = NULL;
+	required.count = 0;
+	required.existing = NULL;
+	fiftyoneDegreesPropertiesResults *properties = BuildProperties(&required);
+	EXPECT_EQ(0, fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(properties, "Black"));
+	EXPECT_EQ(1, fiftyoneDegreesPropertiesGetRequiredPropertyIndexFromName(properties, "Yellow"));
+	fiftyoneDegreesPropertiesFree(properties);
+}
+
 TEST_F(PropertiesTest, ArrayTwoPropertiesOrdered) {
 	const char* tests[] = { "Yellow", "Black" };
 	fiftyoneDegreesPropertiesRequired required;
@@ -116,11 +129,3 @@ TEST_F(PropertiesTest, ArrayTwoPropertiesOrdered) {
 	fiftyoneDegreesPropertiesFree(properties);
 }
 
-
-
-//int result = fiftyoneDegreesPropertiesGetPropertyIndexFromName(properties, "AProperty");
-//EXPECT_EQ(0, result);
-//result = fiftyoneDegreesPropertiesGetPropertyIndexFromName(properties, "BP");
-//EXPECT_EQ(1, result);
-//result = fiftyoneDegreesPropertiesGetPropertyIndexFromName(properties, "CPropertyWithAReallyQuiteLongName");
-//EXPECT_EQ(2, result);
