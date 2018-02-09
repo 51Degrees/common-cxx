@@ -73,7 +73,13 @@ TEST_F(PropertiesTest, AllProperties) {
 }
 
 /**
-* Check that all the properties are present as expected.
+* Check that passing a string list of required properties works as expected.
+* Yellow is in the list of properties and required properties so should 
+* have an index.
+* Red is in the list of properties but not required properties so should
+* return an index of -1.
+* Beige is not in the list of properties but is in required properties so 
+* should also return an index of -1.
 */
 TEST_F(PropertiesTest, OneMissingProperty) {
 	fiftyoneDegreesPropertiesRequired required;
@@ -92,6 +98,13 @@ TEST_F(PropertiesTest, OneMissingProperty) {
 	fiftyoneDegreesPropertiesFree(properties);
 }
 
+/**
+* Check that passing a string list of required properties works as expected.
+* Yellow and Black are both in the list of properties and required properties 
+* so should have index values.
+* Since they are sorted alphabetically, Black should have index 0 and Yellow 
+* index 1.
+*/
 TEST_F(PropertiesTest, StringTwoPropertiesOrdered) {
 	fiftyoneDegreesPropertiesRequired required;
 	required.string = "Yellow,Black";
@@ -104,6 +117,10 @@ TEST_F(PropertiesTest, StringTwoPropertiesOrdered) {
 	fiftyoneDegreesPropertiesFree(properties);
 }
 
+/**
+* Check that passing a string list of required properties works as expected.
+* Function should still work if there is a space after the comma (?)
+*/
 TEST_F(PropertiesTest, StringTwoPropertiesOrderedSpace) {
 	fiftyoneDegreesPropertiesRequired required;
 	required.string = "Yellow, Black";
@@ -116,6 +133,13 @@ TEST_F(PropertiesTest, StringTwoPropertiesOrderedSpace) {
 	fiftyoneDegreesPropertiesFree(properties);
 }
 
+/**
+* Check that passing an array of strings of required properties works as expected.
+* Yellow and Black are both in the list of properties and required properties 
+* so should have index values.
+* Since they are sorted alphabetically, Black should have index 0 and Yellow 
+* index 1.
+*/
 TEST_F(PropertiesTest, ArrayTwoPropertiesOrdered) {
 	const char* tests[] = { "Yellow", "Black" };
 	fiftyoneDegreesPropertiesRequired required;
