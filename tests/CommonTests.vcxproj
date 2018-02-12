@@ -89,6 +89,8 @@
     <ClCompile Include="..\threading.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="EvidenceWithHeadersTests_MultipleHeaders.cpp" />
+    <ClCompile Include="EvidenceWithHeadersTests_SingleHeader.cpp" />
     <ClCompile Include="StringCollectionTestBase.cpp" />
     <ClCompile Include="EvidenceTests.cpp" />
     <ClCompile Include="IpHeaderParserTests.cpp" />

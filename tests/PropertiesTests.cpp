@@ -15,20 +15,6 @@ const char* testValues[] = {
 	"White"
 };
 
-// Function used to return property names when the properties code 
-// requests them
-fiftyoneDegreesString* getProperty(
-	void *state,
-	uint32_t index,
-	fiftyoneDegreesCollectionItem *item)
-{
-	fiftyoneDegreesTestCollectionState *strings = (fiftyoneDegreesTestCollectionState*)state;
-	fiftyoneDegreesString *result = NULL;
-	strings->collection->get(strings->collection, strings->offsets[index], item);
-	item->collection = strings->collection;
-	return (fiftyoneDegreesString*)item->data.ptr;
-}
-
 // Class that sets up the properties test structure. This stops us having to 
 // do it multiple times.
 class PropertiesTest: public StringCollectionTestBase
@@ -51,7 +37,7 @@ protected:
 			&state,
 			count,
 			required,
-			getProperty,
+			getStringTestValue,
 			malloc,
 			free);
 	}

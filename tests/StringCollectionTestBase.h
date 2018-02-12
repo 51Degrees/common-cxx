@@ -11,6 +11,12 @@ typedef struct fiftyone_degrees_test_collection_state {
 	void *data;
 } fiftyoneDegreesTestCollectionState;
 
+// Function used to return string names when the collections code 
+// requests them
+fiftyoneDegreesString* getStringTestValue(
+	void *state,
+	uint32_t index,
+	fiftyoneDegreesCollectionItem *item);
 
 class StringCollectionTestBase : public ::testing::Test {
 protected:

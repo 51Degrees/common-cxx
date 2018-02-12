@@ -45,7 +45,7 @@ typedef struct fiftyone_degrees_headers_t {
 
 typedef fiftyoneDegreesString*(*fiftyoneDegreesHeadersGet)(
 	void *state,
-	int index, 
+	uint32_t index, 
 	fiftyoneDegreesCollectionItem *item);
 
 fiftyoneDegreesHeaders* fiftyoneDegreesHeadersCreate(
