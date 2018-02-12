@@ -2,8 +2,6 @@
 #include "../evidence.h"
 
 
-
-
 void assertStringHeaderAdded(
 	fiftyoneDegreesEvidenceKeyValuePair *pair,
 	const char *expectedField,
@@ -138,3 +136,4 @@ TEST(Evidence, Parse_MultipleStringSingleImportant)
 	EXPECT_EQ(0, (int)evidence->items[1].parsedValue) <<
 		L"Expected '" << (const char*)evidence->items[1].originalValue << "' not to be parsed";
 }
+

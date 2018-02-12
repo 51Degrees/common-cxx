@@ -5,6 +5,19 @@ extern "C" {
 	#include "../string.h"
 }
 
+// Function used to return string names when the collections code 
+// requests them
+fiftyoneDegreesString* getStringTestValue(
+	void *state,
+	uint32_t index,
+	fiftyoneDegreesCollectionItem *item)
+{
+	fiftyoneDegreesTestCollectionState *strings = (fiftyoneDegreesTestCollectionState*)state;
+	fiftyoneDegreesString *result = NULL;
+	strings->collection->get(strings->collection, strings->offsets[index], item);
+	item->collection = strings->collection;
+	return (fiftyoneDegreesString*)item->data.ptr;
+}
 
 // Class that sets up the properties structure. This stops us having to 
 // do it multiple times.

@@ -46,6 +46,8 @@
     <ClCompile Include="IpHeaderParserTests.cpp" />
     <ClCompile Include="PropertiesTests.cpp" />
     <ClCompile Include="StringCollectionTestBase.cpp" />
+    <ClCompile Include="EvidenceWithHeadersTests_MultipleHeaders.cpp" />
+    <ClCompile Include="EvidenceWithHeadersTests_SingleHeader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
