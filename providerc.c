@@ -96,7 +96,7 @@ fiftyoneDegreesProviderResourceHandle* fiftyoneDegreesProviderIncUse(
 	} while (tracker != provider->active);
 #else
 	tracker = (fiftyoneDegreesProviderResourceHandle*)provider->active;
-	tracker->inUse--;
+	tracker->inUse++;
 #endif
 	return tracker;
 }
