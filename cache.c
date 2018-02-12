@@ -29,6 +29,9 @@
 #endif
 #include <assert.h>
 
+#define TRUE 1
+#define FALSE 0
+
  /**
  * RED BLACK BINARY TREE METHODS
  */
