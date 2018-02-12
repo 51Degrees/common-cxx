@@ -24,12 +24,23 @@
 #include "evidence.h"
 #include "string.h"
 
+typedef struct prefix_map_t {
+	const char *prefix;
+	size_t prefixLength;
+	fiftyoneDegreesEvidenceHeaderPrefix prefixEnum;
+} prefixMap;
+
+static prefixMap _map[] = {
+	{ "server", sizeof("server"), FIFTYONEDEGREES_EVIDENCE_SERVER },
+	{ "http", sizeof("http"), FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING },
+};
+
 static void parsePair(
 	fiftyoneDegreesEvidenceCollection *evidence,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	switch (pair->prefix) {
 	case FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_IP_ADDRESSES:
-		parseIpAddresses(evidence->malloc, pair->originalValue);
+		// parseIpAddresses(evidence->malloc, pair->originalValue);
 	case FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING:
 	case FIFTYONEDEGREES_EVIDENCE_SERVER:
 	case FIFTYONEDEGREES_EVIDENCE_COOKIES:
@@ -39,13 +50,24 @@ static void parsePair(
 	}
 }
 
+static bool isHttpHeader(
+	void *state,
+	fiftyoneDegreesEvidenceKeyValuePair *pair) {
+	return pair->prefix == FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING &&
+		fiftyoneDegreesHeaderGetIndex(
+			(fiftyoneDegreesHeaders*)state,
+			pair->field,
+			strlen(pair->field)) >= 0;
+}
+
 fiftyoneDegreesEvidenceCollection* fiftyoneDegreesEvidenceCreate(
 	int capacity,
 	void*(*malloc)(size_t),
 	void(*free)(void*)) {
-	fiftyoneDegreesEvidenceCollection *evidence = malloc(
-		sizeof(fiftyoneDegreesEvidenceCollection) +
-		(capacity * sizeof(fiftyoneDegreesEvidenceKeyValuePair)));
+	fiftyoneDegreesEvidenceCollection *evidence = 
+		(fiftyoneDegreesEvidenceCollection*)malloc(
+			sizeof(fiftyoneDegreesEvidenceCollection) +
+			(capacity * sizeof(fiftyoneDegreesEvidenceKeyValuePair)));
 	if (evidence != NULL) {
 		evidence->capacity = capacity;
 		evidence->count = 0;
@@ -114,12 +136,40 @@ int fiftyoneDegreesEvidenceIterate(
 	for (i = 0; i < evidence->count; i++) {
 		pair = &evidence->items[i];
 		if (compareMethod(state, pair) == true) {
-			if (pair->parsedValue == NULL) {
-				parsePair(evidence, pair);
+			if (matchedMethod != NULL) {
+				if (pair->parsedValue == NULL) {
+					parsePair(evidence, pair);
+				}
+				matchedMethod(state, pair);
 			}
-			matchedMethod(state, pair);
 			count++;
 		}
 	}
 	return count;
+}
+
+int fiftyoneDegreesEvidenceIteratorHttpHeaders(
+	fiftyoneDegreesEvidenceCollection *evidence,
+	fiftyoneDegreesHeaders *headers,
+	fiftyoneDegreesEvidenceMatched matchedMethod) {
+	return fiftyoneDegreesEvidenceIterate(
+		evidence, 
+		headers, 
+		isHttpHeader, 
+		matchedMethod);
+}
+
+fiftyoneDegreesEvidenceHeaderPrefix fiftyoneDegreesEvidenceMapPrefix(
+	const char *key) {
+	size_t length = strlen(key);
+	int i;
+	prefixMap *map;
+	for (i = 0; i < sizeof(_map) / sizeof(prefixMap); i++) {
+		map = &_map[i];
+		if (length > map->prefixLength &&
+			strncmp(map->prefix, key, map->prefixLength) == 0) {
+			return map->prefixEnum;
+		}
+	}
+	return FIFTYONEDEGREES_EVIDENCE_IGNORE;
 }

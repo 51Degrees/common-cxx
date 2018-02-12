@@ -29,6 +29,7 @@
 #include <stdlib.h>
 
 #include "ip.h"
+#include "headers.h"
 
 #ifdef __cplusplus
 #define EXTERNAL extern "C"
@@ -42,7 +43,8 @@ typedef enum e_fiftyone_degrees_evidence_header_prefix {
 	FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING = 0,
 	FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_IP_ADDRESSES = 1, // A list of IP addresses as a string to be parsed into a IP addresses collection.
 	FIFTYONEDEGREES_EVIDENCE_SERVER = 2,
-	FIFTYONEDEGREES_EVIDENCE_COOKIES = 3
+	FIFTYONEDEGREES_EVIDENCE_COOKIES = 3,
+	FIFTYONEDEGREES_EVIDENCE_IGNORE = 99, // The evidence is invalid and should be ignored
 } fiftyoneDegreesEvidenceHeaderPrefix;
 
 typedef struct fiftyone_degrees_evidence_key_value_pair {
@@ -92,19 +94,28 @@ EXTERNAL fiftyoneDegreesEvidenceKeyValuePair* fiftyoneDegreesEvidenceAddString(
 	const char *field,
 	const char *originalValue);
 
-/**
- * Iterators over the items in the evidence that match the header value AND the
- * characters of the field. If field is NULL then all the items that match the 
- * header are returned. Where the parsedValue of the key value pair is NULL 
- * prior to calling this method the parsed value will be calculated.
- * @return the number of items iterated over
- */
 EXTERNAL int fiftyoneDegreesEvidenceIterate(
 	fiftyoneDegreesEvidenceCollection *evidence,
 	void *state,
 	fiftyoneDegreesEvidenceCompare compareMethod,
 	fiftyoneDegreesEvidenceMatched matchedMethod);
 
-EXTERNAL fiftyoneDegreesEvidenceHeaderPrefix fiftyoneDegreesEvidenceMapPrefix(const char *evidence);
+/**
+ * Determines the field name intersection between the evidence and the headers. 
+ * Calls matched method for each of the headers that has a corresponding field 
+ * and value in the evidence.
+ * @param evidence a collection of key value pairs
+ * @param headers a collection of HTTP headers of interest
+ * @param matchedMethod a callback method used when an intersecting field is 
+ * identified, or NULL if no callback is required
+ * @returns the number of intersecting items
+ */
+EXTERNAL int fiftyoneDegreesEvidenceIteratorHttpHeaders(
+	fiftyoneDegreesEvidenceCollection *evidence,
+	fiftyoneDegreesHeaders *headers,
+	fiftyoneDegreesEvidenceMatched matchedMethod);
+
+EXTERNAL fiftyoneDegreesEvidenceHeaderPrefix fiftyoneDegreesEvidenceMapPrefix(
+	const char *key);
 
 #endif

@@ -58,8 +58,8 @@ fiftyoneDegreesHeaders* fiftyoneDegreesHeadersCreate(
 
 int fiftyoneDegreesHeaderGetIndex(
 	fiftyoneDegreesHeaders *headers,
-	char* httpHeaderName,
-	int length);
+	const char* httpHeaderName,
+	size_t length);
 
 void fiftyoneDegreesHeadersFree(fiftyoneDegreesHeaders *headers);
 
