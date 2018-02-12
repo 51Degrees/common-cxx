@@ -24,6 +24,7 @@
 #ifndef FIFTYONEDEGREES_PROVIDER_INCLUDED
 #define FIFTYONEDEGREES_PROVIDER_INCLUDED
 
+#include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
 #include "threading.h"

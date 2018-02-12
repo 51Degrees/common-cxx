@@ -113,8 +113,8 @@ fiftyoneDegreesFileHandle* fiftyoneDegreesFileHandleGet(
 		next.exchange,
 		orig.exchange) != orig.exchange);
 #else
-	orig = reader->head;
-	reader->head.values.index = reader->stack[orig.values.index].next;
+	orig = pool->head;
+	pool->head.values.index = pool->stack[orig.values.index].next;
 #endif
 	return &pool->stack[orig.values.index];
 }
@@ -132,9 +132,9 @@ void fiftyoneDegreesFileHandleRelease(fiftyoneDegreesFileHandle* handle) {
 		next.exchange,
 		orig.exchange) != orig.exchange);
 #else
-	handle->next = handle->reader->head.values.index;
-	handle->reader->head.values.index =
-		(uint16_t)(handle - handle->reader->stack);
+	handle->next = handle->pool->head.values.index;
+	handle->pool->head.values.index =
+		(uint16_t)(handle - handle->pool->stack);
 #endif
 }
 
