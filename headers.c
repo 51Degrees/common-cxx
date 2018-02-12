@@ -21,11 +21,15 @@
 * defined by the Mozilla Public License, v. 2.0.
 ********************************************************************** */
 
-#ifndef _stricmp
+#include "headers.h"
+
+#include <stdlib.h>
+#ifdef _MSC_FULL_VER
+#include <string.h>
+#else
+#include <strings.h>
 #define _stricmp strcasecmp
 #endif
-
-#include "headers.h"
 
 /* HTTP header prefix used when processing collections of parameters. */
 #define HTTP_PREFIX_UPPER "HTTP_"
