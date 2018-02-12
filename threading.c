@@ -126,8 +126,6 @@ fiftyoneDegreesSignal* fiftyoneDegreesSignalCreate() {
     fiftyoneDegreesSignal *signal = (fiftyoneDegreesSignal*)
         malloc(sizeof(fiftyoneDegreesSignal));
     if (signal != NULL) {
-        signal->cond = NULL;
-        signal->mutex = NULL;
         signal->wait = false;
         if (pthread_cond_init(&signal->cond, NULL) != 0 ||
             pthread_mutex_init(&signal->mutex, NULL) != 0) {
