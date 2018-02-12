@@ -116,7 +116,7 @@ int fiftyoneDegreesHeaderGetIndex(
 	// Perform a case insensitive compare of the remaining characters.
 	for (i = 0; i < headers->unique.count; i++) {
 		compare = fiftyoneDegreesListGetAsString(&headers->unique, i);
-		if (compare->size == length &&
+		if (compare->size - 1 == length &&
 			_stricmp(httpHeaderName, FIFTYONEDEGREES_STRING(compare)) == 0) {
 			return i;
 		}

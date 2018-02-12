@@ -24,15 +24,9 @@
 #include "evidence.h"
 #include "string.h"
 
-typedef struct prefix_map_t {
-	const char *prefix;
-	size_t prefixLength;
-	fiftyoneDegreesEvidenceHeaderPrefix prefixEnum;
-} prefixMap;
-
-static prefixMap _map[] = {
-	{ "server", sizeof("server"), FIFTYONEDEGREES_EVIDENCE_SERVER },
-	{ "http", sizeof("http"), FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING },
+static fiftyoneDegreesEvidencePrefixMap _map[] = {
+	{ "server.", sizeof("server.") - 1, FIFTYONEDEGREES_EVIDENCE_SERVER },
+	{ "header.", sizeof("header.") - 1, FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING },
 };
 
 static void parsePair(
@@ -50,15 +44,7 @@ static void parsePair(
 	}
 }
 
-static bool isHttpHeader(
-	void *state,
-	fiftyoneDegreesEvidenceKeyValuePair *pair) {
-	return pair->prefix == FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING &&
-		fiftyoneDegreesHeaderGetIndex(
-			(fiftyoneDegreesHeaders*)state,
-			pair->field,
-			strlen(pair->field)) >= 0;
-}
+
 
 fiftyoneDegreesEvidenceCollection* fiftyoneDegreesEvidenceCreate(
 	int capacity,
@@ -148,28 +134,17 @@ int fiftyoneDegreesEvidenceIterate(
 	return count;
 }
 
-int fiftyoneDegreesEvidenceIteratorHttpHeaders(
-	fiftyoneDegreesEvidenceCollection *evidence,
-	fiftyoneDegreesHeaders *headers,
-	fiftyoneDegreesEvidenceMatched matchedMethod) {
-	return fiftyoneDegreesEvidenceIterate(
-		evidence, 
-		headers, 
-		isHttpHeader, 
-		matchedMethod);
-}
-
-fiftyoneDegreesEvidenceHeaderPrefix fiftyoneDegreesEvidenceMapPrefix(
+fiftyoneDegreesEvidencePrefixMap* fiftyoneDegreesEvidenceMapPrefix(
 	const char *key) {
-	size_t length = strlen(key);
 	int i;
-	prefixMap *map;
-	for (i = 0; i < sizeof(_map) / sizeof(prefixMap); i++) {
+	size_t length = strlen(key);
+	fiftyoneDegreesEvidencePrefixMap *map;
+	for (i = 0; i < sizeof(_map) / sizeof(fiftyoneDegreesEvidencePrefixMap); i++) {
 		map = &_map[i];
-		if (length > map->prefixLength &&
+		if (map->prefixLength < length &&
 			strncmp(map->prefix, key, map->prefixLength) == 0) {
-			return map->prefixEnum;
+			return map;
 		}
 	}
-	return FIFTYONEDEGREES_EVIDENCE_IGNORE;
+	return NULL;
 }
