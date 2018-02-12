@@ -19,7 +19,8 @@ typedef enum e_fiftyone_degrees_evidence_ip_type {
 	FIFTYONEDEGREES_EVIDENCE_IP_TYPE_INVALID = 2,
 } fiftyoneDegreesEvidenceIpType;
 
-typedef struct fiftyone_degrees_evidence_ip_address fiftyoneDegreesEvidenceIpAddress;
+typedef struct fiftyone_degrees_evidence_ip_address
+    fiftyoneDegreesEvidenceIpAddress;
 
 typedef struct fiftyone_degrees_evidence_ip_address {
 	fiftyoneDegreesEvidenceIpType type;
@@ -31,7 +32,7 @@ typedef struct fiftyone_degrees_evidence_ip_address {
 					   // const char *originalEnd; // The last character for the IP addresses
 } fiftyoneDegreesEvidenceIpAddress;
 
-EXTERNAL void freeIpAddresses(
+EXTERNAL void fiftyoneDegreesIpFreeAddresses(
 	void(*free)(void*),
 	fiftyoneDegreesEvidenceIpAddress *addresses);
 

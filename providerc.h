@@ -42,9 +42,9 @@ typedef struct fiftyoneDegrees_provider_t fiftyoneDegreesProvider;
 */
 #pragma pack(push, 4)
 typedef struct fiftyoneDegrees_provider_resource_handle_t {
-	const void *resource; /* Pointer to the resource the provider is providing. 
+	const void *resource; /* Pointer to the resource the provider is providing.
 						  */
-	const fiftyoneDegreesProvider *provider; /* Pointer to the provider the 
+	const fiftyoneDegreesProvider *provider; /* Pointer to the provider the
 											 tracker relates to. */
 	volatile long inUse; /* Counter indicating the number of active
 						 uses of the resource. */
@@ -52,18 +52,18 @@ typedef struct fiftyoneDegrees_provider_resource_handle_t {
 #pragma pack(pop)
 
 /**
- * Provider structure used to provide access to a shared and changing resource. 
+ * Provider structure used to provide access to a shared and changing resource.
  */
 typedef struct fiftyoneDegrees_provider_t {
 #ifndef FIFTYONEDEGREES_NO_THREADING
 	fiftyoneDegreesProviderResourceHandle volatile *active; /* Current handle 
 															for resource used 
 															by the provider. */
-	FIFTYONEDEGREES_MUTEX lock; /* Used to lock critical regions where mutable
-								variables are written to */
+	fiftyoneDegreesMutex lock; /* Used to lock critical regions where mutable
+							   variables are written to */
 #else
-	fiftyoneDegreesActiveResource *active; /* Non volatile wrapper for the
-										   provider's data set. */
+	fiftyoneDegreesProviderResourceHandle *active; /* Non volatile wrapper for 
+												   the provider's data set. */
 #endif
 	void*(*malloc)(size_t);
 	void(*freeMemory)(void*);

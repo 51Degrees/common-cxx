@@ -85,6 +85,7 @@
  * @returns the number of children plus 1 for this current node.
  * \endcond
  */
+ #ifdef _DEBUG
 static int32_t cacheTreeCount(fiftyoneDegreesCacheNode *current) {
 	int32_t count = 0;
 	if (current != TREE_EMPTY(current->shard)) {
@@ -100,6 +101,7 @@ static int32_t cacheTreeCount(fiftyoneDegreesCacheNode *current) {
 	}
 	return count;
 }
+#endif
 
 /**
 * \cond
@@ -482,6 +484,8 @@ static int cacheValidate(const fiftyoneDegreesCache *cache) {
 #ifndef FIFTYONEDEGREES_NO_THREADING
 
 static void cacheLockCreate(fiftyoneDegreesCacheLock *lock) {
+    lock->readLock = NULL;
+    lock->writeLock = NULL;
 	FIFTYONEDEGREES_SIGNAL_CREATE(lock->readLock);
 	FIFTYONEDEGREES_SIGNAL_CREATE(lock->writeLock);
 	assert(lock->readLock != NULL);
@@ -522,6 +526,10 @@ static void cacheLockEndRead(fiftyoneDegreesCacheLock *lock) {
 
 #else
 
+#ifdef _MSC_VER
+#pragma warning (push)
+#pragma warning (disable: 4100) 
+#endif
 static void cacheLockCreate(fiftyoneDegreesCacheLock *lock) {}
 
 static void cacheLockClose(fiftyoneDegreesCacheLock *lock) {}
@@ -533,6 +541,9 @@ static void cacheLockEndRead(fiftyoneDegreesCacheLock *lock) {}
 static void cacheLockBeginWrite(fiftyoneDegreesCacheLock *lock) {}
 
 static void cacheLockEndWrite(fiftyoneDegreesCacheLock *lock) {}
+#ifdef _MSC_VER
+#pragma warning (pop)
+#endif
 
 #endif
 
@@ -573,7 +584,7 @@ static void cacheInitShard(fiftyoneDegreesCacheShard *shard) {
 		current->shard = shard;
 		current->data.ptr = (byte*)NULL;
 		current->data.allocated = 0;
-		current->data.length = 0;
+		current->data.used = 0;
 		if (shard->last != current) {
 			// Add this node to the end of the shard's linked list.
 			current->listPrevious = shard->last;
@@ -679,7 +690,9 @@ static void cacheMoveToHead(fiftyoneDegreesCacheNode *node) {
  */
 static fiftyoneDegreesCacheNode *cacheGetNextFree(
 		fiftyoneDegreesCacheShard *shard) {
+    #ifdef _DEBUG
 	int countBefore, countAfter;
+	#endif
 
 	fiftyoneDegreesCacheNode *node; // The oldest node in the shard.
 
@@ -697,10 +710,14 @@ static fiftyoneDegreesCacheNode *cacheGetNextFree(
 		cacheMoveToHead(node);
 
 		// Remove the last result from the binary tree.
+		#ifdef _DEBUG
 		countBefore = cacheTreeCount(TREE_FIRST(shard));
+		#endif
 		cacheTreeDelete(node);
+		#ifdef _DEBUG
 		countAfter = cacheTreeCount(TREE_FIRST(shard));
 		assert(countBefore - 1 == countAfter);
+		#endif
 	}
 
 	// Set the pointers of the node to null indicating that the
@@ -910,8 +927,15 @@ fiftyoneDegreesCacheNode* fiftyoneDegreesCacheGet(
 	return node;
 }
 
+#ifdef _MSC_VER
+#pragma warning (push)
+#pragma warning (disable: 4100) 
+#endif
 void fiftyoneDegreesCacheRelease(fiftyoneDegreesCacheNode* node) {
 #ifndef FIFTYONEDEGREES_NO_THREADING
 	FIFTYONEDEGREES_INTERLOCK_DEC(&node->activeCount);
 #endif
 }
+#ifdef _MSC_VER
+#pragma warning (pop)
+#endif

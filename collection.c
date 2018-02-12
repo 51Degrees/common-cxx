@@ -29,9 +29,16 @@ typedef struct size_counter_t {
 	uint32_t max; /* The maximum number of entries to read */
 } sizeCounter;
 
+#ifdef _MSC_VER
+#pragma warning (push)
+#pragma warning (disable: 4100) 
+#endif
 static void releaseNothing(fiftyoneDegreesCollectionItem *item) {
 	assert(item != NULL);
 }
+#ifdef _MSC_VER
+#pragma warning (pop)
+#endif
 
 static void releaseCache(fiftyoneDegreesCollectionItem *item) {
 	if (item->handle != NULL) {
@@ -41,10 +48,12 @@ static void releaseCache(fiftyoneDegreesCollectionItem *item) {
 }
 
 static void releaseFile(fiftyoneDegreesCollectionItem *item) {
+	assert(item->handle != NULL);
 	if (item->handle != NULL) {
 		item->collection->freeMemory(item->handle);
 		fiftyoneDegreesDataReset(&item->data);
 		item->handle = NULL;
+		item->collection = NULL;
 	}
 }
 
@@ -61,7 +70,7 @@ static void freeCollection(fiftyoneDegreesCollection *collection) {
 }
 
 static void freeMemoryCollection(fiftyoneDegreesCollection *collection) {
-	fiftyoneDegreesCollectionMemory *memory = 
+	fiftyoneDegreesCollectionMemory *memory =
 		(fiftyoneDegreesCollectionMemory*)collection->state;
 
 	if (collection->next != NULL) {
@@ -127,7 +136,7 @@ static fiftyoneDegreesCollectionItem* getPartialVariable(
 	if (offset < collection->size) {
 		item->data.ptr = m->firstByte + offset;
 		item->data.allocated = 0;
-		item->data.length = 0;
+		item->data.used = 0;
 		item->handle = NULL;
 		item->collection = collection;
 	}
@@ -152,7 +161,7 @@ static fiftyoneDegreesCollectionItem* getPartialFixed(
 	if (index < collection->count) {
 		item->data.ptr = m->firstByte + (index * collection->elementSize);
 		item->data.allocated = 0;
-		item->data.length = collection->elementSize;
+		item->data.used = collection->elementSize;
 		item->handle = NULL;
 		item->collection = collection;
 	}
@@ -234,11 +243,20 @@ void* fiftyoneDegreesReadFileFixed(
 		fiftyoneDegreesFileHandleRelease(handle);
 		return NULL;
 	}
-	data->length = file->collection->elementSize;
+	data->used = file->collection->elementSize;
 
 	fiftyoneDegreesFileHandleRelease(handle);
 
 	return data->ptr;
+}
+
+static void allocateData(
+    const fiftyoneDegreesCache *cache,
+    fiftyoneDegreesData *dst,
+    fiftyoneDegreesData *src) {
+    dst->ptr = (byte*)cache->mallocCacheData(src->allocated);
+    assert(dst->ptr != NULL);
+    dst->allocated = src->allocated;
 }
 
 static void loaderCache(
@@ -254,18 +272,15 @@ static void loaderCache(
 	collection->get(collection, key, &item);
 
 	// Copy the value from the source collection into the cache.
-	if (item.data.allocated > data->allocated) {
+    if (data->ptr == NULL) {
+        allocateData(cache, data, &item.data);
+    }
+	else if (item.data.used > data->allocated) {
 		cache->freeCacheData(data->ptr);
-		data->ptr = NULL;
-		data->allocated = 0;
-		data->length = 0;
+        allocateData(cache, data, &item.data);
 	}
-	if (data->ptr == NULL) {
-		data->ptr = (byte*)cache->mallocCacheData(item.data.allocated);
-		data->allocated = item.data.allocated;
-	}
-	memcpy(data->ptr, item.data.ptr, item.data.allocated);
-	data->length = item.data.length;
+	memcpy(data->ptr, item.data.ptr, item.data.used);
+	data->used = item.data.used;
 
 	// Release the item from the source collection.
 	collection->release(&item);
@@ -275,7 +290,7 @@ static fiftyoneDegreesCollectionItem* getFromCache(
 	fiftyoneDegreesCollection *collection,
 	uint32_t key,
 	fiftyoneDegreesCollectionItem *item) {
-	fiftyoneDegreesCollectionCache *cache = 
+	fiftyoneDegreesCollectionCache *cache =
 		(fiftyoneDegreesCollectionCache*)collection->state;
 	fiftyoneDegreesCacheNode *node = fiftyoneDegreesCacheGet(
 		cache->cache,
@@ -291,9 +306,10 @@ static void iterateCollection(
 	void *state,
 	bool(*callback)(fiftyoneDegreesData *data, void *state)) {
 	fiftyoneDegreesCollectionItem item;
-	long nextIndexOrOffset = 0;
+	uint32_t nextIndexOrOffset = 0;
 	fiftyoneDegreesDataReset(&item.data);
-	while (collection->get(collection, nextIndexOrOffset, &item) != NULL &&
+	while (nextIndexOrOffset < collection->size &&
+		   collection->get(collection, nextIndexOrOffset, &item) != NULL &&
 		   callback(&item.data, state) != false) {
 
 		// Set the next index or offset.
@@ -301,7 +317,7 @@ static void iterateCollection(
 			nextIndexOrOffset++;
 		}
 		else {
-			nextIndexOrOffset += item.data.length;
+			nextIndexOrOffset += item.data.used;
 		}
 
 		// Release the item just retrieved.
@@ -314,7 +330,7 @@ static void iterateCollection(
 
 static bool callbackLoadedSize(fiftyoneDegreesData *data, void *state) {
 	sizeCounter *tracker = (sizeCounter*)state;
-	tracker->size += data->length;
+	tracker->size += data->used;
 	tracker->count++;
 	return tracker->count < tracker->max;
 }
@@ -399,7 +415,7 @@ static fiftyoneDegreesCollectionFile* readFile(
 
 static fiftyoneDegreesCollection* createFromFile(
 	FILE *file,
-	fiftyoneDegreesFileReader *reader,
+	fiftyoneDegreesFilePool *reader,
 	uint32_t elementSize,
 	int isCount,
 	void*(*malloc)(size_t __size),
@@ -437,7 +453,7 @@ static fiftyoneDegreesCollection* createFromFile(
 
 static fiftyoneDegreesCollection* createFromFilePartial(
 	FILE *file,
-	fiftyoneDegreesFileReader *reader,
+	fiftyoneDegreesFilePool *reader,
 	uint32_t elementSize,
 	int isCount,
 	int count,
@@ -529,7 +545,7 @@ static fiftyoneDegreesCollection* createFromFilePartial(
 
 static fiftyoneDegreesCollection* createFromFileCached(
 	FILE *file,
-	fiftyoneDegreesFileReader *reader,
+	fiftyoneDegreesFilePool *reader,
 	uint32_t elementSize,
 	int isCount,
 	int capacity,
@@ -644,7 +660,7 @@ fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromMemory(
 
 fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromFile(
 	FILE *file,
-	fiftyoneDegreesFileReader *reader,
+	fiftyoneDegreesFilePool *reader,
 	fiftyoneDegreesCollectionConfig *config,
 	uint32_t elementSize,
 	int isCount,

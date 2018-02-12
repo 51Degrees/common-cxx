@@ -95,7 +95,7 @@ fiftyoneDegreesProviderResourceHandle* fiftyoneDegreesProviderIncUse(
 		FIFTYONEDEGREES_INTERLOCK_INC(&tracker->inUse);
 	} while (tracker != provider->active);
 #else
-	tracker = (fiftyoneDegreesProviderTracker*)provider->active;
+	tracker = (fiftyoneDegreesProviderResourceHandle*)provider->active;
 	tracker->inUse--;
 #endif
 	return tracker;
@@ -138,4 +138,3 @@ const void* fiftyoneDegreesProviderReplace(
 	// Return the currently active resource for the provider.
 	return provider->active->resource;
 }
-

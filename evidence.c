@@ -65,10 +65,10 @@ void fiftyoneDegreesEvidenceFree(
 		if (pair->parsedValue != NULL) {
 			switch (pair->prefix) {
 			case FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_IP_ADDRESSES:
-				// The parsed evidence is a collection of IP addresses. 
+				// The parsed evidence is a collection of IP addresses.
 				// Free the memory for each IP address.
-				freeIpAddresses(
-					evidence, 
+				fiftyoneDegreesIpFreeAddresses(
+					evidence->free,
 					(fiftyoneDegreesEvidenceIpAddress*)pair->parsedValue);
 				break;
 			case FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING:
@@ -77,7 +77,7 @@ void fiftyoneDegreesEvidenceFree(
 			default:
 				// Free the parsed value if not the same as the original.
 				if (pair->parsedValue != pair->originalValue) {
-					evidence->free(pair->parsedValue);
+					evidence->free((void*)pair->parsedValue);
 				}
 				break;
 			}

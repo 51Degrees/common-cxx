@@ -52,9 +52,11 @@ static void addUniqueHeaders(
 	fiftyoneDegreesHeadersGet getHeaderMethod) {
 	int i;
 	fiftyoneDegreesCollectionItem item;
-	fiftyoneDegreesDataReset(&item.data);
 	headers->unique.count = 0;
 	for (i = 0; i < count; i++) {
+		fiftyoneDegreesDataReset(&item.data);
+		item.collection = NULL;
+		item.handle = NULL;
 		getHeaderMethod(state, i, &item);
 		if (doesHeaderExist(headers, &item) == false) {
 			fiftyoneDegreesListAdd(&headers->unique, &item);

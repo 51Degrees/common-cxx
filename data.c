@@ -3,7 +3,7 @@
 void fiftyoneDegreesDataReset(fiftyoneDegreesData *data) {
 	data->ptr = NULL;
 	data->allocated = 0;
-	data->length = 0;
+	data->used = 0;
 }
 
 void* fiftyoneDegreesDataMalloc(

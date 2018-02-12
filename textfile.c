@@ -1,5 +1,3 @@
-#include "memory.h"
-
 /* *********************************************************************
 * This Source Code Form is copyright of 51Degrees Mobile Experts Limited.
 * Copyright 2017 51Degrees Mobile Experts Limited, 5 Charlotte Close,
@@ -23,28 +21,23 @@
 * defined by the Mozilla Public License, v. 2.0.
 ********************************************************************** */
 
-int fiftyoneDegreesMemoryAdvance(
-	fiftyoneDegreesMemoryReader *reader,
-	size_t advanceBy) {
-	if (reader == NULL || reader->current == NULL) {
-		return 0;
+#include "textfile.h"
+
+void fiftyoneDegreesTextFileIterate(
+	const char *fileName,
+	const char *buffer,
+	int length,
+	void *state,
+	void(*callback)(const char*, void *)) {
+	char *current = (char*)buffer;
+	FILE *handle;
+	if (fiftyoneDegreesFileOpen(fileName, &handle) ==
+		FIFTYONEDEGREES_FILE_OPEN_STATUS_SUCCESS) {
+		current = fgets((char*)buffer, length, handle);
+		while (current != NULL) {
+			callback(buffer, state);
+			current = fgets((char*)buffer, length, handle);
+		}
+		fclose(handle);
 	}
-	reader->current += advanceBy;
-	if (reader->current > reader->lastByte) {
-		return 0;
-	}
-	return 1;
 }
-
-static void* FIFTYONEDEGREES_CALL_CONV mallocInternal(size_t __size) {
-	return malloc(__size);
-}
-
-static void FIFTYONEDEGREES_CALL_CONV freeInternal(void *__ptr) {
-	free(__ptr);
-}
-
-void *(FIFTYONEDEGREES_CALL_CONV *fiftyoneDegreesMalloc)(size_t __size) =
-	mallocInternal;
-void (FIFTYONEDEGREES_CALL_CONV *fiftyoneDegreesFree)(void *__ptr) =
-	freeInternal;

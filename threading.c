@@ -30,7 +30,7 @@
 
 #include <windows.h>
 
-fiftyoneDegreesSignal *fiftyoneDegreesSignalCreate()  {
+fiftyoneDegreesSignal* fiftyoneDegreesSignalCreate()  {
 	fiftyoneDegreesSignal *signal = (fiftyoneDegreesSignal*)CreateEventEx(
 		NULL,
 		NULL,
@@ -44,17 +44,30 @@ void fiftyoneDegreesSignalClose(fiftyoneDegreesSignal *signal) {
 		CloseHandle(signal);
 	}
 }
+
+#ifdef _MSC_VER
+#pragma warning (push)
+#pragma warning (disable: 4189) 
+#endif
 void fiftyoneDegreesSignalSet(fiftyoneDegreesSignal *signal) {
 	BOOL result = SetEvent(signal);
 	assert(result != 0);
 }
+#ifdef _MSC_VER
+#pragma warning (pop)
+#endif
+
+#ifdef _MSC_VER
+#pragma warning (push)
+#pragma warning (disable: 4189) 
+#endif
 void fiftyoneDegreesSignalWait(fiftyoneDegreesSignal *signal) {
 	DWORD result = WaitForSingleObject(signal, INFINITE);
 	assert(result == WAIT_OBJECT_0);
 }
-int fiftyoneDegreesSignalValid(fiftyoneDegreesSignal *signal) {
-	return signal != NULL;
-}
+#ifdef _MSC_VER
+#pragma warning (pop)
+#endif
 
 #else
 
@@ -71,42 +84,33 @@ int fiftyoneDegreesSignalValid(fiftyoneDegreesSignal *signal) {
  * Initialises the mutex passed to the method.
  * @param mutex to be initialised.
  */
-void fiftyoneDegreesMutexCreate(const fiftyoneDegreesMutex *mutex) {
-	((fiftyoneDegreesMutex*)mutex)->initValue =
-        pthread_mutex_init((pthread_mutex_t*)&mutex->mutex, NULL);
-	assert(mutex->initValue == 0);
+void fiftyoneDegreesMutexCreate(fiftyoneDegreesMutex *mutex) {
+    int result = pthread_mutex_init(mutex, NULL);
+	assert(result == 0);
 }
 
 /**
  * Closes the mutex passed to the method.
  * @param mutex to be closed.
  */
-void fiftyoneDegreesMutexClose(const fiftyoneDegreesMutex *mutex) {
-	pthread_mutex_destroy((pthread_mutex_t*)&mutex->mutex);
+void fiftyoneDegreesMutexClose(fiftyoneDegreesMutex *mutex) {
+	pthread_mutex_destroy(mutex);
 }
 
 /**
  * Locks the mutex passed to the method.
  * @param mutex to be locked.
  */
-void fiftyoneDegreesMutexLock(const fiftyoneDegreesMutex *mutex) {
-	pthread_mutex_lock((pthread_mutex_t*)&mutex->mutex);
+void fiftyoneDegreesMutexLock(fiftyoneDegreesMutex *mutex) {
+	pthread_mutex_lock(mutex);
 }
 
 /**
  * Unlocks the mutex passed to the method.
  * @param mutex to be unlocked.
  */
-void fiftyoneDegreesMutexUnlock(const fiftyoneDegreesMutex *mutex) {
-	pthread_mutex_unlock((pthread_mutex_t*)&mutex->mutex);
-}
-
-/**
- * Tests the mutex to confirm it's valid.
- * @param mutex to be tested
- */
-int fiftyoneDegreesMutexValid(const fiftyoneDegreesMutex *mutex) {
-	return mutex->initValue == 0;
+void fiftyoneDegreesMutexUnlock(fiftyoneDegreesMutex *mutex) {
+	pthread_mutex_unlock(mutex);
 }
 
 /**
@@ -118,19 +122,20 @@ int fiftyoneDegreesMutexValid(const fiftyoneDegreesMutex *mutex) {
  * the condition is also released.
  * @param signal to be initialised
  */
-void fiftyoneDegreesSignalCreate(fiftyoneDegreesSignal *signal) {
-	signal->initValue = pthread_cond_init((pthread_cond_t*)&signal->cond, 0);
-	if (signal->initValue == 0) {
-		signal->destroyed = 0;
-		fiftyoneDegreesMutexCreate(&signal->mutex);
-		if (signal->mutex.initValue != 0) {
-			pthread_cond_destroy((pthread_cond_t*)&signal->cond);
-			signal->destroyed = 1;
-			signal->initValue = 1;
-		} else {
-            signal->wait = false;
+fiftyoneDegreesSignal* fiftyoneDegreesSignalCreate() {
+    fiftyoneDegreesSignal *signal = (fiftyoneDegreesSignal*)
+        malloc(sizeof(fiftyoneDegreesSignal));
+    if (signal != NULL) {
+        signal->cond = NULL;
+        signal->mutex = NULL;
+        signal->wait = false;
+        if (pthread_cond_init(&signal->cond, NULL) != 0 ||
+            pthread_mutex_init(&signal->mutex, NULL) != 0) {
+            free(signal);
+            signal = NULL;
         }
-	}
+    }
+    return signal;
 }
 
 /**
@@ -143,15 +148,9 @@ void fiftyoneDegreesSignalCreate(fiftyoneDegreesSignal *signal) {
  * @param signal to be closed.
  */
 void fiftyoneDegreesSignalClose(fiftyoneDegreesSignal *signal) {
-	if (signal->destroyed == 0) {
-		pthread_mutex_lock((pthread_mutex_t *__restrict)&signal->mutex.mutex);
-		if (signal->destroyed == 0) {
-            signal->wait = false;
-            pthread_cond_destroy((pthread_cond_t*)&signal->cond);
-            signal->destroyed = 1;
-            pthread_mutex_unlock((pthread_mutex_t *__restrict)&signal->mutex.mutex);
-            fiftyoneDegreesMutexClose(&signal->mutex);
-		}
+	if (signal != NULL) {
+        pthread_mutex_destroy(&signal->mutex);
+        pthread_cond_destroy(&signal->cond);
 	}
 }
 
@@ -163,10 +162,11 @@ void fiftyoneDegreesSignalClose(fiftyoneDegreesSignal *signal) {
  * @param signal to be set.
  */
 void fiftyoneDegreesSignalSet(fiftyoneDegreesSignal *signal) {
-	if (signal->destroyed == 0) {
+    if (pthread_mutex_lock(&signal->mutex) == 0) {
         signal->wait = false;
-		pthread_cond_signal((pthread_cond_t *__restrict)&signal->cond);
-	}
+        pthread_cond_signal(&signal->cond);
+        pthread_mutex_unlock(&signal->mutex);
+    }
 }
 
 /**
@@ -177,25 +177,14 @@ void fiftyoneDegreesSignalSet(fiftyoneDegreesSignal *signal) {
  */
 void fiftyoneDegreesSignalWait(fiftyoneDegreesSignal *signal) {
 	int result;
-    if (signal->destroyed == 0 &&
-        pthread_mutex_lock((pthread_mutex_t *__restrict)&signal->mutex.mutex) == 0) {
+    if (pthread_mutex_lock(&signal->mutex) == 0) {
         while (signal->wait == true) {
-            result = pthread_cond_wait(
-                (pthread_cond_t *__restrict)&signal->cond,
-                (pthread_mutex_t *__restrict)&signal->mutex.mutex);
+            result = pthread_cond_wait(&signal->cond, &signal->mutex);
             assert(result == 0);
         }
         signal->wait = true;
-        pthread_mutex_unlock((pthread_mutex_t *__restrict)&signal->mutex.mutex);
+        pthread_mutex_unlock(&signal->mutex);
     }
-}
-
-/**
- * Tests a signal to confirm it's valid for use.
- * @param signal pointer to the signal being tested.
- */
-int fiftyoneDegreesSignalValid(fiftyoneDegreesSignal *signal) {
- 	return signal->initValue == 0 && signal->destroyed == 0 && fiftyoneDegreesMutexValid(&signal->mutex);
 }
 
 #endif

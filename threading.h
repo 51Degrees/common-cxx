@@ -35,6 +35,7 @@
 * MUTEX AND THREADING MACROS
 */
 
+#include <stdlib.h>
 #include <stdbool.h>
 
 #ifdef _MSC_VER
@@ -44,6 +45,7 @@
 #pragma intrinsic (_InterlockedDecrement)
 #else
 #include <pthread.h>
+#include <signal.h>
 #endif
 
 /**
@@ -51,18 +53,13 @@
 * in parallel in a multi threaded environment.
 */
 #ifdef _MSC_VER
-#define FIFTYONEDEGREES_MUTEX HANDLE
+typedef HANDLE fiftyoneDegreesMutex;
 #else
-typedef struct fiftyoneDegrees_mutex_t {
-    int initValue;
-    pthread_mutex_t mutex;
-} fiftyoneDegreesMutex;
-void fiftyoneDegreesMutexCreate(const fiftyoneDegreesMutex *mutex);
-void fiftyoneDegreesMutexClose(const fiftyoneDegreesMutex *mutex);
-void fiftyoneDegreesMutexLock(const fiftyoneDegreesMutex *mutex);
-void fiftyoneDegreesMutexUnlock(const fiftyoneDegreesMutex *mutex);
-int fiftyoneDegreesMutexValid(const fiftyoneDegreesMutex *mutex);
-#define FIFTYONEDEGREES_MUTEX fiftyoneDegreesMutex
+typedef pthread_mutex_t fiftyoneDegreesMutex;
+void fiftyoneDegreesMutexCreate(fiftyoneDegreesMutex *mutex);
+void fiftyoneDegreesMutexClose(fiftyoneDegreesMutex *mutex);
+void fiftyoneDegreesMutexLock(fiftyoneDegreesMutex *mutex);
+void fiftyoneDegreesMutexUnlock(fiftyoneDegreesMutex *mutex);
 #endif
 
 /**
@@ -71,26 +68,17 @@ int fiftyoneDegreesMutexValid(const fiftyoneDegreesMutex *mutex);
 */
 #ifdef _MSC_VER
 typedef HANDLE fiftyoneDegreesSignal;
+#else
+typedef struct fiftyoneDegrees_signal_t {
+    volatile bool wait;
+    pthread_cond_t cond;
+    pthread_mutex_t mutex;
+} fiftyoneDegreesSignal;
+#endif
 fiftyoneDegreesSignal* fiftyoneDegreesSignalCreate();
 void fiftyoneDegreesSignalClose(fiftyoneDegreesSignal *signal);
 void fiftyoneDegreesSignalSet(fiftyoneDegreesSignal *signal);
 void fiftyoneDegreesSignalWait(fiftyoneDegreesSignal *signal);
-int fiftyoneDegreesSignalValid(fiftyoneDegreesSignal *signal);
-#else
-typedef struct fiftyoneDegrees_signal_t {
-    int initValue;
-    volatile bool wait;
-    pthread_cond_t cond;
-    fiftyoneDegreesMutex mutex;
-    int destroyed; // Indicates if the signal has been destroyed
-} fiftyoneDegreesSignal;
-void fiftyoneDegreesSignalCreate(fiftyoneDegreesSignal *signal);
-void fiftyoneDegreesSignalClose(fiftyoneDegreesSignal *signal);
-void fiftyoneDegreesSignalSet(fiftyoneDegreesSignal *signal);
-void fiftyoneDegreesSignalWait(fiftyoneDegreesSignal *signal);
-int fiftyoneDegreesSignalValid(fiftyoneDegreesSignal *signal);
-#define fiftyoneDegreesSignal fiftyoneDegreesSignal
-#endif
 
 /**
  * A thread created with the CREATE_THREAD macro.
@@ -105,53 +93,28 @@ int fiftyoneDegreesSignalValid(fiftyoneDegreesSignal *signal);
 * Creates a new signal that can be used to wait for
 * other operations to complete before continuing.
 */
-#ifdef _MSC_VER
 #define FIFTYONEDEGREES_SIGNAL_CREATE(s) s = fiftyoneDegreesSignalCreate()
-#else
-#define FIFTYONEDEGREES_SIGNAL_CREATE(s) fiftyoneDegreesSignalCreate(s)
-#endif
 
 /**
 * Frees the handle provided to the macro.
 */
-#ifdef _MSC_VER
 #define FIFTYONEDEGREES_SIGNAL_CLOSE(s) fiftyoneDegreesSignalClose(s)
-#else
-#define FIFTYONEDEGREES_SIGNAL_CLOSE(s) fiftyoneDegreesSignalClose(s)
-#endif
 
 /**
 * Signals a thread waiting for the signal to proceed.
 */
-#ifdef _MSC_VER
 #define FIFTYONEDEGREES_SIGNAL_SET(s) fiftyoneDegreesSignalSet(s)
-#else
-#define FIFTYONEDEGREES_SIGNAL_SET(s) fiftyoneDegreesSignalSet(s)
-#endif
 
 /**
 * Waits for the signal to become set by another thread.
 */
-#ifdef _MSC_VER
 #define FIFTYONEDEGREES_SIGNAL_WAIT(s) fiftyoneDegreesSignalWait(s)
-#else
-#define FIFTYONEDEGREES_SIGNAL_WAIT(s) fiftyoneDegreesSignalWait(s)
-#endif
-
-/**
- * Returns true if the signal is valid.
- */
-#ifdef _MSC_VER
-#define FIFTYONEDEGREES_SIGNAL_VALID(s) fiftyoneDegreesSignalValid(s)
-#else
-#define FIFTYONEDEGREES_SIGNAL_VALID(s) fiftyoneDegreesSignalValid(s)
-#endif
 
 /**
 * Creates a new mutex at the pointer provided.
 */
 #ifdef _MSC_VER
-#define FIFTYONEDEGREES_MUTEX_CREATE(m) m = (FIFTYONEDEGREES_MUTEX)CreateMutex(NULL,FALSE,NULL)
+#define FIFTYONEDEGREES_MUTEX_CREATE(m) m = CreateMutex(NULL,FALSE,NULL)
 #else
 #define FIFTYONEDEGREES_MUTEX_CREATE(m) fiftyoneDegreesMutexCreate(&m)
 #endif
@@ -199,7 +162,8 @@ int fiftyoneDegreesSignalValid(fiftyoneDegreesSignal *signal);
  * s - pointer to the state data to pass to the method
  */
 #ifdef _MSC_VER
-#define FIFTYONEDEGREES_THREAD_CREATE(t, m, s) t = (FIFTYONEDEGREES_THREAD)CreateThread(NULL, 0, m, s, 0, NULL)
+#define FIFTYONEDEGREES_THREAD_CREATE(t, m, s) t = \
+	(FIFTYONEDEGREES_THREAD)CreateThread(NULL, 0, m, s, 0, NULL)
 #else
 #define FIFTYONEDEGREES_THREAD_CREATE(t, m, s) pthread_create(&t, NULL, m, s)
 #endif
@@ -246,11 +210,9 @@ int fiftyoneDegreesSignalValid(fiftyoneDegreesSignal *signal);
 #endif
 
 #ifdef _MSC_VER
-#define FIFTYONEDEGREES_INTERLOCK_EXCHANGE_POINTER(d,e,c) \
-	InterlockedCompareExchangePointer( \
-		(PVOID volatile*)&d, \
-		(PVOID)e, \
-		(PVOID)c)
+#define FIFTYONEDEGREES_INTERLOCK_EXCHANGE(d,e,c) \
+	InterlockedCompareExchange(&d, e, c)
 #else
-#define FIFTYONEDEGREES_INTERLOCK_EXCHANGE_POINTER(d,e,c) __sync_val_compare_and_swap(&d,c,e)
+#define FIFTYONEDEGREES_INTERLOCK_EXCHANGE(d,e,c) \
+    __sync_val_compare_and_swap(&d,c,e)
 #endif

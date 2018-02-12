@@ -43,7 +43,7 @@ typedef struct fiftyoneDegrees_cache_lock_t {
 	volatile int readers; /* Count of the number of active readers */
 } fiftyoneDegreesCacheLock;
 #else
-typedef fiftyoneDegreesCacheLock;
+typedef int fiftyoneDegreesCacheLock;
 #endif
 
 /* Initial definition of the cache structure. */

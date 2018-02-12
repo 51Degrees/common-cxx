@@ -95,6 +95,7 @@ static int getPropertyIndex(
 			strncmp(FIFTYONEDEGREES_STRING(test),
 					requiredPropertyName,
 					requiredPropertyLength) == 0) {
+			string.collection->release(&string);
 			return i;
 		}
 		string.collection->release(&string);

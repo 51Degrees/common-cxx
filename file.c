@@ -1,8 +1,3 @@
-#include <stdint.h>
-#include <stdio.h>
-#include <assert.h>
-#include "file.h"
-
 /* *********************************************************************
 * This Source Code Form is copyright of 51Degrees Mobile Experts Limited.
 * Copyright 2017 51Degrees Mobile Experts Limited, 5 Charlotte Close,
@@ -26,40 +21,17 @@
 * defined by the Mozilla Public License, v. 2.0.
 ********************************************************************** */
 
-#ifndef FIFTYONEDEGREES_NO_THREADING
-#include "threading.h"
-#endif
+#include "file.h"
 
-static void setLength(fiftyoneDegreesFileReader *reader) {
+static void setLength(fiftyoneDegreesFilePool *reader) {
 	fiftyoneDegreesFileHandle *handle;
 	reader->length = 0;
 	handle = fiftyoneDegreesFileHandleGet(reader);
-	if (handle != NULL) {
-		if (fseek(handle->file, 0, SEEK_END) == 0) {
-            reader->length = ftell(handle->file);
-		}
-		fiftyoneDegreesFileHandleRelease(handle);
+	assert(handle != NULL);
+	if (fseek(handle->file, 0, SEEK_END) == 0) {
+        reader->length = ftell(handle->file);
 	}
-}
-
-void fiftyoneDegreesFileReaderFree(
-	fiftyoneDegreesFileReader* reader,
-	void(*free)(void*)) {
-
-	// Close each of the file handles contained in the reader.
-	fiftyoneDegreesFileHandle *current = (fiftyoneDegreesFileHandle*)reader->head;
-	while (current != NULL) {
-		fclose(current->file);
-		current = (fiftyoneDegreesFileHandle*)current->next;
-	}
-
-	// Free the memory used by the linked list.
-	free(reader->linkedList);
-
-	// Set the values back to the defaults.
-	reader->head = NULL;
-	reader->length = 0;
-	reader->linkedList = NULL;
+	fiftyoneDegreesFileHandleRelease(handle);
 }
 
 fiftyoneDegreesFileOpenStatus fiftyoneDegreesFileOpen(
@@ -85,82 +57,103 @@ fiftyoneDegreesFileOpenStatus fiftyoneDegreesFileOpen(
 	return FIFTYONEDEGREES_FILE_OPEN_STATUS_SUCCESS;
 }
 
-fiftyoneDegreesFileOpenStatus fiftyoneDegreesFileReaderInit(
-	fiftyoneDegreesFileReader *reader,
+fiftyoneDegreesFileOpenStatus fiftyoneDegreesFilePoolInit(
+	fiftyoneDegreesFilePool *pool,
 	const char *fileName,
-	int concurrency,
+	uint16_t concurrency,
 	void*(*malloc)(size_t __size),
 	void(*free)(void*)) {
-	fiftyoneDegreesFileOpenStatus status = 
+	fiftyoneDegreesFileOpenStatus status =
 		FIFTYONEDEGREES_FILE_OPEN_STATUS_FAILED;
-	int i;
+	uint16_t i;
 	fiftyoneDegreesFileHandle *handle;
-	reader->linkedList = (fiftyoneDegreesFileHandle*)malloc(
+	pool->stack = (fiftyoneDegreesFileHandle*)malloc(
 		sizeof(fiftyoneDegreesFileHandle) * concurrency);
-	if (reader->linkedList != NULL) {
-		reader->head = NULL;
+	if (pool->stack != NULL) {
+		pool->count = concurrency;
+		pool->head.values.aba = 0;
+		pool->head.values.index = 0;
 		for (i = 0; i < concurrency; i++) {
-			handle = &reader->linkedList[i];
+			handle = &pool->stack[i];
 
 			// Set a reference back to the reader which can be used when the
 			// handle is freed.
-			handle->reader = reader;
+			handle->pool = pool;
 
 			// Open the file. If anything other than zero is returned then
 			// exit.
 			status = fiftyoneDegreesFileOpen(fileName, &handle->file);
 			if (status != FIFTYONEDEGREES_FILE_OPEN_STATUS_SUCCESS) {
-				fiftyoneDegreesFileReaderFree(reader, free);
+				fiftyoneDegreesFilePoolRelease(pool, free);
 				return status;
 			}
 
-			// Add the handle to the head of the linked list.
-			handle->next = reader->head;
-			reader->head = handle;
+			// Link the handle to the next one in the list.
+			handle->next = pool->head.values.index;
+			pool->head.values.index = i;
 		}
 
 		// Set the length of the file in the reader.
-		setLength(reader);
+		setLength(pool);
 	}
 	return status;
 }
 
 fiftyoneDegreesFileHandle* fiftyoneDegreesFileHandleGet(
-	fiftyoneDegreesFileReader *reader) {
-	fiftyoneDegreesFileHandle *first = reader->head;
-	assert(reader->head != NULL);
+	fiftyoneDegreesFilePool *pool) {
+	fiftyoneDegreesFileHead orig;
 #ifndef FIFTYONEDEGREES_NO_THREADING
-	fiftyoneDegreesFileHandle *next;
+	fiftyoneDegreesFileHead next;
 	do {
-		next = first;
-		first = (fiftyoneDegreesFileHandle*)
-			FIFTYONEDEGREES_INTERLOCK_EXCHANGE_POINTER(
-				reader->head,
-				first->next,
-				first);
-	} while (first != next);
+		orig = pool->head;
+		next.values.aba = orig.values.aba + 1;
+		next.values.index = pool->stack[orig.values.index].next;
+	} while (FIFTYONEDEGREES_INTERLOCK_EXCHANGE(
+		pool->head.exchange,
+		next.exchange,
+		orig.exchange) != orig.exchange);
 #else
-	reader->head = first->next;
+	orig = reader->head;
+	reader->head.values.index = reader->stack[orig.values.index].next;
 #endif
-	return first;
+	return &pool->stack[orig.values.index];
 }
 
 void fiftyoneDegreesFileHandleRelease(fiftyoneDegreesFileHandle* handle) {
-	fiftyoneDegreesFileReader *reader = handle->reader;
 #ifndef FIFTYONEDEGREES_NO_THREADING
-	fiftyoneDegreesFileHandle *first = reader->head;
-	fiftyoneDegreesFileHandle *next;
+	fiftyoneDegreesFileHead orig, next;
 	do {
-		handle->next = first;
-		next = first;
-		first = (fiftyoneDegreesFileHandle*)
-			FIFTYONEDEGREES_INTERLOCK_EXCHANGE_POINTER(
-				reader->head,
-				handle,
-				first);
-	} while (first != next);
+		orig = handle->pool->head;
+		handle->next = orig.values.index;
+		next.values.aba = orig.values.aba + 1;
+		next.values.index = (uint16_t)(handle - handle->pool->stack);
+	} while(FIFTYONEDEGREES_INTERLOCK_EXCHANGE(
+		handle->pool->head.exchange,
+		next.exchange,
+		orig.exchange) != orig.exchange);
 #else
-	handle->next = reader->head;
-	reader->head = handle;
+	handle->next = handle->reader->head.values.index;
+	handle->reader->head.values.index =
+		(uint16_t)(handle - handle->reader->stack);
 #endif
+}
+
+void fiftyoneDegreesFilePoolRelease(
+	fiftyoneDegreesFilePool* pool,
+	void(*free)(void*)) {
+	uint16_t i;
+
+	// Close each of the file handles contained in the reader.
+	for (i = 0; i < pool->count; i++) {
+		fclose(pool->stack[i].file);
+	}
+
+	// Free the memory used by the linked list.
+	free(pool->stack);
+
+	// Set the values back to the defaults.
+	pool->head.values.aba = 0;
+	pool->head.values.index = 0;
+	pool->length = 0;
+	pool->stack = NULL;
 }

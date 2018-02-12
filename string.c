@@ -39,7 +39,7 @@ void* fiftyoneDegreesStringRead(
 	assert(fileOffset >= file->offset);
 	assert(fileOffset < file->offset + (long)file->collection->size);
 
-	data->length = 0;
+	data->used = 0;
 
 	// Move to the start of the string in the file.
 	if (fseek(
@@ -79,7 +79,7 @@ void* fiftyoneDegreesStringRead(
 		fiftyoneDegreesFileHandleRelease(handle);
 		return NULL;
 	}
-	data->length = length;
+	data->used = bytesNeeded;
 
 	fiftyoneDegreesFileHandleRelease(handle);
 

@@ -90,7 +90,7 @@ static fiftyoneDegreesEvidenceIpType iterateIpAddress(
 			*current == ':' ||
 			*current == '.' ||
 			*current == ' ' ||
-			*current == NULL) {
+			*current == '\0') {
 			if (type == FIFTYONEDEGREES_EVIDENCE_IP_TYPE_INVALID) {
 				type = getIpTypeFromSeparator(*current);
 			}
@@ -118,7 +118,7 @@ fiftyoneDegreesEvidenceIpAddress* mallocIpAddress(
 	}
 }
 
-void freeIpAddresses(
+void fiftyoneDegreesIpFreeAddresses(
 	void(*free)(void*),
 	fiftyoneDegreesEvidenceIpAddress *addresses) {
 	fiftyoneDegreesEvidenceIpAddress *current = addresses;

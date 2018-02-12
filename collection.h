@@ -39,7 +39,7 @@
 typedef struct t_fiftyone_degrees_collection_config {
 	uint32_t loaded; // Number of items to load into memory from the start of the collection
 	int capacity; // Number of items the cache should store, 0 for no cache
-	int concurrency; // Expected number of concurrent requests
+	uint16_t concurrency; // Expected number of concurrent requests
 } fiftyoneDegreesCollectionConfig;
 
 typedef struct fiftyoneDegrees_collection_t fiftyoneDegreesCollection;
@@ -92,7 +92,7 @@ typedef struct fiftyoneDegrees_collection_memory_t {
 
 typedef struct fiftyoneDegrees_collection_file_t {
 	fiftyoneDegreesCollection *collection; /* The generic collection */
-	fiftyoneDegreesFileReader *reader; /* Reader used to load items into the
+	fiftyoneDegreesFilePool *reader; /* Reader used to load items into the
 									      cache, or NULL if no cache */
 	long offset; /* Offset to the collection in the source data structure */
 	fiftyoneDegreesCollectionFileRead read;
@@ -120,7 +120,7 @@ typedef struct fiftyoneDegrees_collection_cache_t {
  */
 fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromFile(
 	FILE *file,
-	fiftyoneDegreesFileReader *reader,
+	fiftyoneDegreesFilePool *reader,
 	fiftyoneDegreesCollectionConfig *config,
 	uint32_t elementSize,
 	int isCount,
