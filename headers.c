@@ -40,8 +40,8 @@ static bool doesHeaderExist(
 	uint32_t i;
 	fiftyoneDegreesString *compare = (fiftyoneDegreesString*)item->data.ptr;
 	fiftyoneDegreesString *test;
-	for (i = 0; i < headers->unique.count; i++) {
-		test = fiftyoneDegreesListGetAsString(&headers->unique, i);
+	for (i = 0; i < headers->names.count; i++) {
+		test = fiftyoneDegreesListGetAsString(&headers->names, i);
 		if (compare->size == test->size &&
 			strncmp(
 				FIFTYONEDEGREES_STRING(compare),
@@ -59,18 +59,20 @@ static void addUniqueHeaders(
 	int count,
 	fiftyoneDegreesHeadersGet getHeaderMethod) {
 	int i;
-	fiftyoneDegreesCollectionItem item;
-	headers->unique.count = 0;
+	uint32_t uniqueId;
+	fiftyoneDegreesCollectionItem nameItem;
+	headers->names.count = 0;
 	for (i = 0; i < count; i++) {
-		fiftyoneDegreesDataReset(&item.data);
-		item.collection = NULL;
-		item.handle = NULL;
-		getHeaderMethod(state, i, &item);
-		if (doesHeaderExist(headers, &item) == false) {
-			fiftyoneDegreesListAdd(&headers->unique, &item);
+		fiftyoneDegreesDataReset(&nameItem.data);
+		nameItem.collection = NULL;
+		nameItem.handle = NULL;
+		uniqueId = getHeaderMethod(state, i, &nameItem);
+		if (doesHeaderExist(headers, &nameItem) == false) {
+			headers->uniqueIds[headers->names.count] = uniqueId;
+			fiftyoneDegreesListAdd(&headers->names, &nameItem);
 		}
 		else {
-			item.collection->release(&item);
+			nameItem.collection->release(&nameItem);
 		}
 	}
 }
@@ -82,9 +84,16 @@ static fiftyoneDegreesHeaders* createHeaders(
 	fiftyoneDegreesHeaders *headers = (fiftyoneDegreesHeaders*)malloc(
 		sizeof(fiftyoneDegreesHeaders));
 	if (headers != NULL) {
-		fiftyoneDegreesListInit(&headers->unique, count, malloc, free);
-		headers->malloc = malloc;
-		headers->free = free;
+		headers->uniqueIds = (uint32_t*)malloc(count * sizeof(uint32_t));
+		if (headers->uniqueIds != NULL) {
+			fiftyoneDegreesListInit(&headers->names, count, malloc, free);
+			headers->malloc = malloc;
+			headers->free = free;
+		}
+		else {
+			free(headers);
+			headers = NULL;
+		}
 	}
 	return headers;
 }
@@ -102,6 +111,11 @@ fiftyoneDegreesHeaders* fiftyoneDegreesHeadersCreate(
 		addUniqueHeaders(headers, state, count, getHeaderMethod);
 	}
 	return headers;
+}
+
+uint32_t fiftyoneDegreesHeadersGetUniqueId(
+	fiftyoneDegreesHeaders *headers, int index) {
+	return headers->uniqueIds[index];
 }
 
 int fiftyoneDegreesHeaderGetIndex(
@@ -122,8 +136,8 @@ int fiftyoneDegreesHeaderGetIndex(
 	}
 
 	// Perform a case insensitive compare of the remaining characters.
-	for (i = 0; i < headers->unique.count; i++) {
-		compare = fiftyoneDegreesListGetAsString(&headers->unique, i);
+	for (i = 0; i < headers->names.count; i++) {
+		compare = fiftyoneDegreesListGetAsString(&headers->names, i);
 		if (compare->size - 1 == length &&
 			_stricmp(httpHeaderName, FIFTYONEDEGREES_STRING(compare)) == 0) {
 			return i;
@@ -135,7 +149,8 @@ int fiftyoneDegreesHeaderGetIndex(
 
 void fiftyoneDegreesHeadersFree(fiftyoneDegreesHeaders *headers) {
 	if (headers != NULL) {
-		fiftyoneDegreesListFree(&headers->unique);
+		fiftyoneDegreesListFree(&headers->names);
+		headers->free(headers->uniqueIds);
 		headers->free(headers);
 	}
 }

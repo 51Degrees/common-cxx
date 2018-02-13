@@ -35,18 +35,19 @@
 #endif
 
 typedef struct fiftyone_degrees_headers_t {
-	fiftyoneDegreesList unique; /* List of unique HTTP header string from a 
-								strings collection */
+	fiftyoneDegreesList names; /* List of unique HTTP header string from a 
+							   strings collection */
+	int *uniqueIds; /* List of unique HTTP header ids corresponding to names */
 	bool useUpperPrefixedHeaders; /* True if an upper case prefixed checks are 
 								  should be used */
 	void*(*malloc)(size_t); /* Used to add strings to the headers lists */
 	void(*free)(void*); /* Used to free the memory used by the headers */
 } fiftyoneDegreesHeaders;
 
-typedef fiftyoneDegreesString*(*fiftyoneDegreesHeadersGet)(
+typedef uint32_t(*fiftyoneDegreesHeadersGet)(
 	void *state,
 	uint32_t index, 
-	fiftyoneDegreesCollectionItem *item);
+	fiftyoneDegreesCollectionItem *nameItem);
 
 fiftyoneDegreesHeaders* fiftyoneDegreesHeadersCreate(
 	void *state,
@@ -60,6 +61,9 @@ int fiftyoneDegreesHeaderGetIndex(
 	fiftyoneDegreesHeaders *headers,
 	const char* httpHeaderName,
 	size_t length);
+
+uint32_t fiftyoneDegreesHeadersGetUniqueId(
+	fiftyoneDegreesHeaders *headers, int index);
 
 void fiftyoneDegreesHeadersFree(fiftyoneDegreesHeaders *headers);
 
