@@ -48,6 +48,7 @@
     <ClCompile Include="StringCollectionTestBase.cpp" />
     <ClCompile Include="EvidenceWithHeadersTests_MultipleHeaders.cpp" />
     <ClCompile Include="EvidenceWithHeadersTests_SingleHeader.cpp" />
+    <ClCompile Include="EvidenceWithHeadersTests_NoHeaders.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />

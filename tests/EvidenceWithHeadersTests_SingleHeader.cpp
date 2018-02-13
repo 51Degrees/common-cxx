@@ -10,7 +10,7 @@ const char* testHeaders_Single[] = {
 	"Red",
 };
 
-// Class that sets up the headers test structure when there are multiple headers. 
+// Class that sets up the headers test structure when there is a single header. 
 // This stops us having to  do it multiple times.
 class EvidenceWithHeadersTest_SingleHeader : public StringCollectionTestBase
 {
@@ -66,7 +66,7 @@ static bool isHttpHeader(
 
 //------------------------------------------------------------------
 // Check that the intersection of a single piece of evidence and 
-// multiple expected headers matches the expected item.
+// single expected header matches the expected item.
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_sh_se_sm[2];
 int intersection_sh_se_sm_count = 0;
@@ -99,9 +99,8 @@ TEST_F(EvidenceWithHeadersTest_SingleHeader, Intersection_sh_se_sm) {
 
 
 //------------------------------------------------------------------
-// Check that the intersection of multiple evidence and multiple
-// expected headers matches the expected items when there
-// are multiple matches.
+// Check that the intersection of multiple evidence and single
+// expected header matches the expected item.
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_sh_me_sm[2];
 int intersection_multiple_sh_me_mm_count = 0;
@@ -137,8 +136,8 @@ TEST_F(EvidenceWithHeadersTest_SingleHeader, Intersection_sh_me_sm) {
 }
 
 //------------------------------------------------------------------
-// Check that the intersection of multiple evidence and multiple
-// expected headers matches the expected items when there are no 
+// Check that the intersection of multiple evidence and a single
+// expected header matches the expected items when there are no 
 // matches.
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_sh_me_nm[2];
@@ -174,8 +173,8 @@ TEST_F(EvidenceWithHeadersTest_SingleHeader, Intersection_sh_me_nm) {
 
 
 //------------------------------------------------------------------
-// Check that the intersection of no evidence and multiple
-// expected headers functions as expected
+// Check that the intersection of no evidence and single
+// expected header functions as expected
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_sh_ne_nm[2];
 int intersection_sh_ne_nm_count = 0;

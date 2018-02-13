@@ -1,3 +1,4 @@
 tests/x64/Debug/
 tests/.vs/
 tests/packages/
+*.coverage
