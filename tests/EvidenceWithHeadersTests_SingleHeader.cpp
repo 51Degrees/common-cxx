@@ -70,11 +70,10 @@ static bool isHttpHeader(
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_sh_se_sm[2];
 int intersection_sh_se_sm_count = 0;
-int evidenceHeaderIntersection_sh_se_sm(void *state,
+void evidenceHeaderIntersection_sh_se_sm(void *state,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	intersection_sh_se_sm[intersection_sh_se_sm_count] = *pair;
 	intersection_sh_se_sm_count++;
-	return intersection_sh_se_sm_count;
 }
 
 TEST_F(EvidenceWithHeadersTest_SingleHeader, Intersection_sh_se_sm) {
@@ -104,11 +103,10 @@ TEST_F(EvidenceWithHeadersTest_SingleHeader, Intersection_sh_se_sm) {
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_sh_me_sm[2];
 int intersection_multiple_sh_me_mm_count = 0;
-int evidenceHeaderIntersection_sh_me_mm(void *state,
+void evidenceHeaderIntersection_sh_me_mm(void *state,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	intersection_sh_me_sm[intersection_multiple_sh_me_mm_count] = *pair;
 	intersection_multiple_sh_me_mm_count++;
-	return intersection_multiple_sh_me_mm_count;
 }
 TEST_F(EvidenceWithHeadersTest_SingleHeader, Intersection_sh_me_sm) {
 	fiftyoneDegreesEvidenceCollection *evidence =
@@ -142,11 +140,10 @@ TEST_F(EvidenceWithHeadersTest_SingleHeader, Intersection_sh_me_sm) {
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_sh_me_nm[2];
 int intersection_sh_me_nm_count = 0;
-int evidenceHeaderIntersection_sh_me_nm(void *state,
+void evidenceHeaderIntersection_sh_me_nm(void *state,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	intersection_sh_me_nm[intersection_sh_me_nm_count] = *pair;
 	intersection_sh_me_nm_count++;
-	return intersection_sh_me_nm_count;
 }
 TEST_F(EvidenceWithHeadersTest_SingleHeader, Intersection_sh_me_nm) {
 	fiftyoneDegreesEvidenceCollection *evidence =
@@ -178,11 +175,10 @@ TEST_F(EvidenceWithHeadersTest_SingleHeader, Intersection_sh_me_nm) {
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_sh_ne_nm[2];
 int intersection_sh_ne_nm_count = 0;
-int evidenceHeaderIntersection_sh_ne_nm(void *state,
+void evidenceHeaderIntersection_sh_ne_nm(void *state,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	intersection_sh_ne_nm[intersection_sh_ne_nm_count] = *pair;
 	intersection_sh_ne_nm_count++;
-	return intersection_sh_ne_nm_count;
 }
 TEST_F(EvidenceWithHeadersTest_SingleHeader, Intersection_sh_ne_nm) {
 	fiftyoneDegreesEvidenceCollection *evidence =

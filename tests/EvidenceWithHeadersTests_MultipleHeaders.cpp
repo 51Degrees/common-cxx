@@ -77,11 +77,10 @@ static bool isHttpHeader(
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_mh_se_sm[2];
 int intersection_mh_se_sm_count = 0;
-int evidenceHeaderIntersection_mh_se_sm(void *state,
+void evidenceHeaderIntersection_mh_se_sm(void *state,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	intersection_mh_se_sm[intersection_mh_se_sm_count] = *pair;
 	intersection_mh_se_sm_count++;
-	return intersection_mh_se_sm_count;
 }
 
 TEST_F(EvidenceWithHeadersTest_MultipleHeaders, Intersection_mh_se_sm) {
@@ -112,11 +111,10 @@ TEST_F(EvidenceWithHeadersTest_MultipleHeaders, Intersection_mh_se_sm) {
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_mh_me_mm[2];
 int intersection_multiple_mh_me_mm_count = 0;
-int evidenceHeaderIntersection_mh_me_mm(void *state,
+void evidenceHeaderIntersection_mh_me_mm(void *state,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	intersection_mh_me_mm[intersection_multiple_mh_me_mm_count] = *pair;
 	intersection_multiple_mh_me_mm_count++;
-	return intersection_multiple_mh_me_mm_count;
 }
 TEST_F(EvidenceWithHeadersTest_MultipleHeaders, Intersection_mh_me_mm) {
 	fiftyoneDegreesEvidenceCollection *evidence =
@@ -152,11 +150,10 @@ TEST_F(EvidenceWithHeadersTest_MultipleHeaders, Intersection_mh_me_mm) {
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_mh_me_nm[2];
 int intersection_mh_me_nm_count = 0;
-int evidenceHeaderIntersection_mh_me_nm(void *state,
+void evidenceHeaderIntersection_mh_me_nm(void *state,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	intersection_mh_me_nm[intersection_mh_me_nm_count] = *pair;
 	intersection_mh_me_nm_count++;
-	return intersection_mh_me_nm_count;
 }
 TEST_F(EvidenceWithHeadersTest_MultipleHeaders, Intersection_mh_me_nm) {
 	fiftyoneDegreesEvidenceCollection *evidence =
@@ -188,11 +185,10 @@ TEST_F(EvidenceWithHeadersTest_MultipleHeaders, Intersection_mh_me_nm) {
 //------------------------------------------------------------------
 fiftyoneDegreesEvidenceKeyValuePair intersection_mh_ne_nm[2];
 int intersection_mh_ne_nm_count = 0;
-int evidenceHeaderIntersection_mh_ne_nm(void *state,
+void evidenceHeaderIntersection_mh_ne_nm(void *state,
 	fiftyoneDegreesEvidenceKeyValuePair *pair) {
 	intersection_mh_ne_nm[intersection_mh_ne_nm_count] = *pair;
 	intersection_mh_ne_nm_count++;
-	return intersection_mh_ne_nm_count;
 }
 TEST_F(EvidenceWithHeadersTest_MultipleHeaders, Intersection_mh_ne_nm) {
 	fiftyoneDegreesEvidenceCollection *evidence =

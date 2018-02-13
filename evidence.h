@@ -72,7 +72,7 @@ typedef struct fiftyone_degrees_evidence_collection {
  * collection of evidence. The parsedValue will be set to the parsed data or
  * NULL if it has not been possible to parse the original value.
  */
-typedef int (*fiftyoneDegreesEvidenceMatched)(
+typedef void(*fiftyoneDegreesEvidenceMatched)(
 	void *state,
 	fiftyoneDegreesEvidenceKeyValuePair *pair);
 

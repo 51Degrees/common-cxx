@@ -56,12 +56,11 @@ bool matchIterateSomeHeader(void *state, fiftyoneDegreesEvidenceKeyValuePair *pa
 	}
 	return false;
 }
-int onMatchIterateString(void *state, fiftyoneDegreesEvidenceKeyValuePair *pair)
+void onMatchIterateString(void *state, fiftyoneDegreesEvidenceKeyValuePair *pair)
 {
 	EXPECT_TRUE(strcmp((const char*)pair->originalValue, (const char*)pair->parsedValue) == 0) <<
 		L"Expected parsed value to be '" << (const char*)pair->originalValue << "' not '" << 
 		(const char*)pair->parsedValue << "'";
-	return 0;
 }
 /*
 Check that the parsed version of a string evidence value will be the same string.
@@ -84,12 +83,11 @@ TEST(Evidence, Iterate_String)
 
 
 char* parsedValue = "already-parsed";
-int onMatchIterateStringAlreadyParsed(void *state, fiftyoneDegreesEvidenceKeyValuePair *pair)
+void onMatchIterateStringAlreadyParsed(void *state, fiftyoneDegreesEvidenceKeyValuePair *pair)
 {
 	EXPECT_TRUE(strcmp(parsedValue, (const char*)pair->parsedValue) == 0) <<
 		L"Expected parsed value to be '" << parsedValue << "' not '" <<
 		(const char*)pair->parsedValue << "'";
-	return 0;
 }
 /*
 Check that an evidence value is not parsed again if it has already been parsed.
