@@ -6,7 +6,7 @@ extern "C" {
 }
 
 // Header names
-const char* testHeaders_Multiple[] = {
+const char* testEvidenceHeaders_Multiple[] = {
 	"Red",
 	"Yellow",
 	"Green",
@@ -25,8 +25,8 @@ protected:
 	int count;
 
 	void SetUp() {
-		count = sizeof(testHeaders_Multiple) / sizeof(const char*);
-		state = buildState(testHeaders_Multiple, count);
+		count = sizeof(testEvidenceHeaders_Multiple) / sizeof(const char*);
+		state = buildState(testEvidenceHeaders_Multiple, count);
 	}
 	void TearDown() {
 		freeState(&state);

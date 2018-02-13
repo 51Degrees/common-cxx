@@ -49,6 +49,7 @@
     <ClCompile Include="EvidenceWithHeadersTests_MultipleHeaders.cpp" />
     <ClCompile Include="EvidenceWithHeadersTests_SingleHeader.cpp" />
     <ClCompile Include="EvidenceWithHeadersTests_NoHeaders.cpp" />
+    <ClCompile Include="HeadersTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />

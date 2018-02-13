@@ -6,7 +6,7 @@ extern "C" {
 }
 
 // Header names
-const char** testHeaders_None = new const char*[0];
+const char** testEvidenceHeaders_None = new const char*[0];
 
 // Class that sets up the headers test structure when there are no headers. 
 // This stops us having to do it multiple times.
@@ -18,7 +18,7 @@ protected:
 
 	void SetUp() {
 		count = 0;
-		state = buildState(testHeaders_None, count);
+		state = buildState(testEvidenceHeaders_None, count);
 	}
 	void TearDown() {
 		freeState(&state);

@@ -6,7 +6,7 @@ extern "C" {
 }
 
 // Header names
-const char* testHeaders_Single[] = {
+const char* testEvidenceHeaders_Single[] = {
 	"Red",
 };
 
@@ -19,8 +19,8 @@ protected:
 	int count;
 
 	void SetUp() {
-		count = sizeof(testHeaders_Single) / sizeof(const char*);
-		state = buildState(testHeaders_Single, count);
+		count = sizeof(testEvidenceHeaders_Single) / sizeof(const char*);
+		state = buildState(testEvidenceHeaders_Single, count);
 	}
 	void TearDown() {
 		freeState(&state);
