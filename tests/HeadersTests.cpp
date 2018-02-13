@@ -20,8 +20,10 @@ protected:
 
 	fiftyoneDegreesHeaders* BuildHeaders(
 		const char** headersList,
+		int headersCount,
 		bool useUpperPrefixedHeaders) {
-		count = sizeof(headersList) / sizeof(const char*);
+		count = headersCount;
+
 		state = buildState(headersList, count);
 
 		return fiftyoneDegreesHeadersCreate(
@@ -44,7 +46,9 @@ const char* testHeaders_Single[] = {
 
 TEST_F(HeadersTests, Single) {
 	fiftyoneDegreesHeaders* headers = BuildHeaders(
-		testHeaders_Single, false);
+		testHeaders_Single,
+		sizeof(testHeaders_Single) / sizeof(const char*),
+		false);
 
 	ASSERT_EQ(1, headers->unique.count);
 	fiftyoneDegreesString* str = (fiftyoneDegreesString*)headers->unique.items[0].data.ptr;
@@ -64,7 +68,9 @@ const char* testHeaders_Multiple[] = {
 
 TEST_F(HeadersTests, Multiple) {
 	fiftyoneDegreesHeaders* headers = BuildHeaders(
-		testHeaders_Multiple, false);
+		testHeaders_Multiple,
+		sizeof(testHeaders_Multiple) / sizeof(const char*),
+		false);
 
 	ASSERT_EQ(4, headers->unique.count);
 	EXPECT_STREQ("Red", FIFTYONEDEGREES_STRING(
@@ -88,7 +94,9 @@ const char* testHeaders_SingleDuplicate[] = {
 
 TEST_F(HeadersTests, SingleDuplicate) {
 	fiftyoneDegreesHeaders* headers = BuildHeaders(
-		testHeaders_SingleDuplicate, false);
+		testHeaders_SingleDuplicate,
+		sizeof(testHeaders_SingleDuplicate) / sizeof(const char*),
+		false);
 
 	ASSERT_EQ(1, headers->unique.count);
 	EXPECT_STREQ("Red", FIFTYONEDEGREES_STRING(
@@ -110,7 +118,9 @@ const char* testHeaders_MultipleDuplicate[] = {
 
 TEST_F(HeadersTests, MultipleDuplicate) {
 	fiftyoneDegreesHeaders* headers = BuildHeaders(
-		testHeaders_MultipleDuplicate, false);
+		testHeaders_MultipleDuplicate,
+		sizeof(testHeaders_MultipleDuplicate) / sizeof(const char*),
+		false);
 
 	ASSERT_EQ(3, headers->unique.count);
 	EXPECT_STREQ("Green", FIFTYONEDEGREES_STRING(
@@ -134,7 +144,9 @@ const char* testHeaders_EmptyString[] = {
 
 TEST_F(HeadersTests, EmptyString) {
 	fiftyoneDegreesHeaders* headers = BuildHeaders(
-		testHeaders_EmptyString, false);
+		testHeaders_EmptyString,
+		sizeof(testHeaders_EmptyString) / sizeof(const char*),
+		false);
 
 	ASSERT_EQ(2, headers->unique.count);
 	EXPECT_STREQ("Green", FIFTYONEDEGREES_STRING(
@@ -155,7 +167,9 @@ const char* testHeaders_NullString[] = {
 
 TEST_F(HeadersTests, NullString) {
 	fiftyoneDegreesHeaders* headers = BuildHeaders(
-		testHeaders_NullString, false);
+		testHeaders_NullString,
+		sizeof(testHeaders_NullString) / sizeof(const char*),
+		false);
 
 	ASSERT_EQ(2, headers->unique.count);
 	EXPECT_STREQ("Green", FIFTYONEDEGREES_STRING(
@@ -176,7 +190,9 @@ const char* testHeaders_Case[] = {
 
 TEST_F(HeadersTests, CheckCase) {
 	fiftyoneDegreesHeaders* headers = BuildHeaders(
-		testHeaders_Case, false);
+		testHeaders_Case,
+		sizeof(testHeaders_Case) / sizeof(const char*),
+		false);
 
 	ASSERT_EQ(2, headers->unique.count);
 	EXPECT_STREQ("Green", FIFTYONEDEGREES_STRING(
@@ -197,7 +213,9 @@ const char* testHeaders_HttpPrefix[] = {
 
 TEST_F(HeadersTests, HttpPrefix) {
 	fiftyoneDegreesHeaders* headers = BuildHeaders(
-		testHeaders_HttpPrefix, true);
+		testHeaders_HttpPrefix,
+		sizeof(testHeaders_HttpPrefix) / sizeof(const char*),
+		true);
 
 	ASSERT_EQ(2, headers->unique.count);
 	EXPECT_STREQ("Red", FIFTYONEDEGREES_STRING(
@@ -214,7 +232,9 @@ const char** testHeaders_None = new const char*[0];
 
 TEST_F(HeadersTests, None) {
 	fiftyoneDegreesHeaders* headers = BuildHeaders(
-		testHeaders_None, false);
+		testHeaders_None,
+		sizeof(testHeaders_None) / sizeof(const char*),
+		false);
 
 	ASSERT_EQ(0, headers->unique.count);
 }
