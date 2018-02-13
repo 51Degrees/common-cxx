@@ -75,9 +75,10 @@ void fiftyoneDegreesEvidenceFree(
 			case FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_IP_ADDRESSES:
 				// The parsed evidence is a collection of IP addresses.
 				// Free the memory for each IP address.
-				fiftyoneDegreesIpFreeAddresses(
+				/*fiftyoneDegreesIpFreeAddresses(
 					evidence->free,
-					(fiftyoneDegreesEvidenceIpAddress*)pair->parsedValue);
+					(fiftyoneDegreesEvidenceIpAddress*)pair->parsedValue);*/
+				// TODO - Change the above code so that evidence does not have a dependency on IP.h.
 				break;
 			case FIFTYONEDEGREES_EVIDENCE_HTTP_HEADER_STRING:
 			case FIFTYONEDEGREES_EVIDENCE_SERVER:
