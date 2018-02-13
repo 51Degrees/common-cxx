@@ -71,7 +71,6 @@ void fiftyoneDegreesSignalWait(fiftyoneDegreesSignal *signal) {
 
 #else
 
-#include <pthread.h>
 #ifdef __APPLE__
 #include <sys/time.h>
 #endif
