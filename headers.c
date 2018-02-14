@@ -42,11 +42,11 @@ static bool doesHeaderExist(
 	fiftyoneDegreesString *test;
 	for (i = 0; i < headers->unique.count; i++) {
 		test = fiftyoneDegreesListGetAsString(&headers->unique, i);
-		if (compare->size == test->size &&
+		if (compare->count == test->count &&
 			strncmp(
 				FIFTYONEDEGREES_STRING(compare),
 				FIFTYONEDEGREES_STRING(test), 
-				compare->size) == 0) {
+				compare->count) == 0) {
 			return true;
 		}
 	}
@@ -89,6 +89,9 @@ static fiftyoneDegreesHeaders* createHeaders(
 	return headers;
 }
 
+/**
+ * @param useUpperPrefixedHeaders true if the HTTP header field names MIGHT include the prefix HTTP_
+ */
 fiftyoneDegreesHeaders* fiftyoneDegreesHeadersCreate(
 	void *state,
 	int count,
@@ -124,7 +127,7 @@ int fiftyoneDegreesHeaderGetIndex(
 	// Perform a case insensitive compare of the remaining characters.
 	for (i = 0; i < headers->unique.count; i++) {
 		compare = fiftyoneDegreesListGetAsString(&headers->unique, i);
-		if (compare->size - 1 == length &&
+		if (compare->count - 1 == length &&
 			_stricmp(httpHeaderName, FIFTYONEDEGREES_STRING(compare)) == 0) {
 			return i;
 		}

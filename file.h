@@ -70,7 +70,7 @@
 #include "threading.h"
 #endif
 
-typedef enum e_fiftyoneDegreesFileOpenStatus {
+typedef enum e_fiftyonedegrees_file_open_status {
 	FIFTYONEDEGREES_FILE_OPEN_STATUS_SUCCESS, /* All okay */
 	FIFTYONEDEGREES_FILE_OPEN_STATUS_FILE_NOT_FOUND, /* The data file couldn't
 													 be found */
@@ -113,7 +113,7 @@ typedef union fiftyonedegrees_file_head_t {
 	uint16_t count; /* Number of items that stack can hold */
 } fiftyoneDegreesFilePool;
 
- /**
+/**
  * \ingroup FiftyOneDegreesFile
  * Releases the file handles contained in the pool and frees any internal
  * memory used by the pool. Does not free the memory pointed to by pool.

@@ -91,7 +91,7 @@ static int getPropertyIndex(
 	for (i = 0; i < source->count; i++) {
 		test = source->get(source->state, i, &string);
 		// Size includes the NULL terminator. Ignore this character.
-		if (test->size - 1 == requiredPropertyLength &&
+		if (test->count - 1 == requiredPropertyLength &&
 			strncmp(FIFTYONEDEGREES_STRING(test),
 					requiredPropertyName,
 					requiredPropertyLength) == 0) {
@@ -116,7 +116,7 @@ static void iteratePropertiesFromExisting(
 		propertyIndex = getPropertyIndex(
 			source,
 			FIFTYONEDEGREES_STRING(propertyName),
-			propertyName->size - 1);
+			propertyName->count - 1);
 		if (propertyIndex >= 0) {
 			match(results, propertyIndex, requiredIndex++);
 		}
@@ -318,7 +318,7 @@ static void initRequiredPropertyNames(
 		results->indexes[i] = getPropertyIndex(
 			source,
 			FIFTYONEDEGREES_STRING(string),
-			string->size - 1);
+			string->count - 1);
 	}
 }
 

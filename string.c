@@ -37,7 +37,7 @@ void* fiftyoneDegreesStringRead(
 		file->reader);
 
 	assert(fileOffset >= file->offset);
-	assert(fileOffset < file->offset + (long)file->collection->size);
+	assert(fileOffset < file->offset + (long)file->collection->count);
 
 	data->used = 0;
 

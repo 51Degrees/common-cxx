@@ -78,7 +78,7 @@ typedef struct fiftyoneDegrees_collection_t {
 										NULL */
 	uint32_t count; /* The number of items, or 0 if not available */
 	uint32_t elementSize; /* The size of each entry, or 0 if variable length */
-	uint32_t size; /* Number of bytes in the source data structure containing
+	uint32_t count; /* Number of bytes in the source data structure containing
 					  the collection's data */
 } fiftyoneDegreesCollection;
 

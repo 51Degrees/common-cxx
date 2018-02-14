@@ -37,7 +37,7 @@
 
 #pragma pack(push, 2)
 typedef struct fiftyoneDegrees_string_t {
-	int16_t size;
+	int16_t count;
 	char value;
 } fiftyoneDegreesString;
 #pragma pack(pop)

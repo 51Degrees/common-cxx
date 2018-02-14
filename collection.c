@@ -25,7 +25,7 @@
 
 typedef struct size_counter_t {
 	uint32_t count; /* The number of entries read so far */
-	uint32_t size; /* The total number of bytes read so far */
+	uint32_t count; /* The total number of bytes read so far */
 	uint32_t max; /* The maximum number of entries to read */
 } sizeCounter;
 
@@ -110,7 +110,7 @@ static fiftyoneDegreesCollectionItem* getMemoryVariable(
 	fiftyoneDegreesCollectionItem *item) {
 	fiftyoneDegreesCollectionMemory *m =
 		(fiftyoneDegreesCollectionMemory*)collection->state;
-	assert(offset < collection->size);
+	assert(offset < collection->count);
 	item->data.ptr = m->firstByte + offset;
 	assert(item->data.ptr < m->lastByte);
 	return item;
@@ -133,7 +133,7 @@ static fiftyoneDegreesCollectionItem* getPartialVariable(
 	fiftyoneDegreesCollectionItem *item) {
 	fiftyoneDegreesCollectionMemory *m =
 		(fiftyoneDegreesCollectionMemory*)collection->state;
-	if (offset < collection->size) {
+	if (offset < collection->count) {
 		item->data.ptr = m->firstByte + offset;
 		item->data.allocated = 0;
 		item->data.used = 0;
@@ -206,7 +206,7 @@ void* fiftyoneDegreesReadFileFixed(
 	}
 
 	// If the index is outside the range of the collection then return NULL.
-	if (offset >= file->collection->size) {
+	if (offset >= file->collection->count) {
 		return NULL;
 	}
 
@@ -308,7 +308,7 @@ static void iterateCollection(
 	fiftyoneDegreesCollectionItem item;
 	uint32_t nextIndexOrOffset = 0;
 	fiftyoneDegreesDataReset(&item.data);
-	while (nextIndexOrOffset < collection->size &&
+	while (nextIndexOrOffset < collection->count &&
 		   collection->get(collection, nextIndexOrOffset, &item) != NULL &&
 		   callback(&item.data, state) != false) {
 
@@ -330,7 +330,7 @@ static void iterateCollection(
 
 static bool callbackLoadedSize(fiftyoneDegreesData *data, void *state) {
 	sizeCounter *tracker = (sizeCounter*)state;
-	tracker->size += data->used;
+	tracker->count += data->used;
 	tracker->count++;
 	return tracker->count < tracker->max;
 }
@@ -342,15 +342,15 @@ static sizeCounter calculateLoadedSize(
 	counter.max = count;
 	if (collection->elementSize != 0) {
 		counter.count = count > collection->count ? collection->count : count;
-		counter.size = counter.count * collection->elementSize;
+		counter.count = counter.count * collection->elementSize;
 	}
-	else if (collection->size < count) {
+	else if (collection->count < count) {
 		counter.count = 0;
-		counter.size = collection->size;
+		counter.count = collection->count;
 	}
 	else {
 		counter.count = 0;
-		counter.size = 0;
+		counter.count = 0;
 		iterateCollection(collection, &counter, callbackLoadedSize);
 	}
 	return counter;
@@ -366,7 +366,7 @@ static fiftyoneDegreesCollection* createCollection(
 	collection->state = malloc(sizeOfState);
 	collection->next = NULL;
 	collection->elementSize = elementSize;
-	collection->size = 0;
+	collection->count = 0;
 	collection->count = 0;
 	collection->freeMemory = free;
 	return collection;
@@ -386,19 +386,19 @@ static fiftyoneDegreesCollectionFile* readFile(
 
 	if (isCount == 0) {
 		// The integer is the size of the data structure.
-		fileCollection->collection->size = sizeOrCount;
+		fileCollection->collection->count = sizeOrCount;
 		fileCollection->collection->count = 0;
 	}
 	else {
 		// The integer is the count of items in the data structure.
 		fileCollection->collection->count = sizeOrCount;
-		fileCollection->collection->size = fileCollection->collection->count * elementSize;
+		fileCollection->collection->count = fileCollection->collection->count * elementSize;
 	}
 
 	// Set the count of items if not already set and the elements are of a
 	// fixed size.
 	if (fileCollection->collection->count == 0 && fileCollection->collection->elementSize > 0) {
-		fileCollection->collection->count = fileCollection->collection->size /
+		fileCollection->collection->count = fileCollection->collection->count /
 			fileCollection->collection->elementSize;
 	}
 
@@ -406,7 +406,7 @@ static fiftyoneDegreesCollectionFile* readFile(
 	fileCollection->offset = ftell(file);
 
 	// Move the file handle past the collection.
-	if (fseek(file, fileCollection->collection->size, SEEK_CUR) != 0) {
+	if (fseek(file, fileCollection->collection->count, SEEK_CUR) != 0) {
 		return NULL;
 	}
 
@@ -485,10 +485,10 @@ static fiftyoneDegreesCollection* createFromFilePartial(
 	// Get the number of bytes that need to be loaded into memory.
 	counter = calculateLoadedSize(source, count);
 	memory->collection->count = counter.count;
-	memory->collection->size = counter.size;
+	memory->collection->count = counter.count;
 
 	// Allocate sufficient memory for the data to be stored in.
-	memory->memoryToFree = (byte*)malloc(memory->collection->size);
+	memory->memoryToFree = (byte*)malloc(memory->collection->count);
 	if (memory->memoryToFree == NULL) {
 		freeMemoryCollection(collection);
 		source->freeCollection(source);
@@ -507,8 +507,8 @@ static fiftyoneDegreesCollection* createFromFilePartial(
 	}
 
 	// Read the portion of the file into memory.
-	if (fread(memory->firstByte, 1, memory->collection->size, file) !=
-		memory->collection->size) {
+	if (fread(memory->firstByte, 1, memory->collection->count, file) !=
+		memory->collection->count) {
 		free(memory->memoryToFree);
 		freeMemoryCollection(collection);
 		source->freeCollection(source);
@@ -516,7 +516,7 @@ static fiftyoneDegreesCollection* createFromFilePartial(
 	}
 
 	// Move the file position to the byte after the collection.
-	if (fseek(file, source->size - memory->collection->size, SEEK_CUR) != 0) {
+	if (fseek(file, source->count - memory->collection->count, SEEK_CUR) != 0) {
 		free(memory->memoryToFree);
 		freeMemoryCollection(collection);
 		source->freeCollection(source);
@@ -524,7 +524,7 @@ static fiftyoneDegreesCollection* createFromFilePartial(
 	}
 
 	// Set the last byte to enable checking for invalid requests.
-	memory->lastByte = memory->firstByte + memory->collection->size;
+	memory->lastByte = memory->firstByte + memory->collection->count;
 
 	// Set the getter to a method that will check for another collection
 	// if the memory collection does not contain the entry.
@@ -595,7 +595,7 @@ static fiftyoneDegreesCollection* createFromFileCached(
 
 	// Copy the source information to the cache collection.
 	collection->count = cache->source->count;
-	collection->size = cache->source->size;
+	collection->count = cache->source->count;
 
 	// Set the get method for the collection.
 	collection->get = getFromCache;
@@ -624,24 +624,24 @@ fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromMemory(
 
 	if (isCount == 0) {
 		// The next integer is the size of the data structure.
-		memory->collection->size = *(uint32_t*)reader->current;
+		memory->collection->count = *(uint32_t*)reader->current;
 		memory->collection->count = 0;
 	}
 	else {
 		// The next integer is the count of items in the data structure.
 		memory->collection->count = *(uint32_t*)reader->current;
-		memory->collection->size = memory->collection->count * elementSize;
+		memory->collection->count = memory->collection->count * elementSize;
 	}
 	memory->collection->elementSize = elementSize;
 
 	// Point the structure to the first byte.
 	memory->firstByte = reader->current + sizeof(uint32_t);
-	memory->lastByte = memory->firstByte + memory->collection->size;
+	memory->lastByte = memory->firstByte + memory->collection->count;
 
 	// Assign the get and release functions for the collection.
 	if (memory->collection->elementSize != 0) {
 		collection->get = getMemoryFixed;
-		memory->collection->count = memory->collection->size /
+		memory->collection->count = memory->collection->count /
 			memory->collection->elementSize;
 	}
 	else {
@@ -653,7 +653,7 @@ fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromMemory(
 	// Move over the structure and the size integer.
 	fiftyoneDegreesMemoryAdvance(
 		reader,
-		memory->collection->size + sizeof(uint32_t));
+		memory->collection->count + sizeof(uint32_t));
 
 	return collection;
 }

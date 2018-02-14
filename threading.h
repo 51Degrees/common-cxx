@@ -111,6 +111,15 @@ void fiftyoneDegreesSignalWait(fiftyoneDegreesSignal *signal);
 #define FIFTYONEDEGREES_SIGNAL_WAIT(s) fiftyoneDegreesSignalWait(s)
 
 /**
+* Returns true if the signal is valid.
+*/
+#ifdef _MSC_VER
+#define FIFTYONEDEGREES_SIGNAL_VALID(s) (*s != NULL)
+#else
+#define FIFTYONEDEGREES_SIGNAL_VALID(s) fiftyoneDegreesSignalValue(s)
+#endif
+
+/**
 * Creates a new mutex at the pointer provided.
 */
 #ifdef _MSC_VER
@@ -147,7 +156,7 @@ void fiftyoneDegreesSignalWait(fiftyoneDegreesSignal *signal);
 #endif
 
 /**
- * Returns true if the signal is valid.
+ * Returns true if the mutex is valid.
  */
 #ifdef _MSC_VER
 #define FIFTYONEDEGREES_MUTEX_VALID(m) (*m != NULL)
