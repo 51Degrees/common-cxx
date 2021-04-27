@@ -363,6 +363,7 @@ void fiftyoneDegreesSignalWait(fiftyoneDegreesSignal *signal);
 #endif
 
 #ifndef _MSC_VER
+#ifndef __arm__
  /**
   * Implements the __sync_bool_compare_and_swap_16 function which is often not
   * implemtned by the compiler. This uses the cmpxchg16b instruction from the
@@ -401,6 +402,34 @@ __fod_sync_bool_compare_and_swap_16(
         : "memory", "cc");
     return (result);
 }
+#else
+typedef struct int128_t {
+    int64_t high;
+    int64_t low;
+} __attribute__((aligned(8),packed)) int128_t;
+
+static __inline int
+__fod_sync_bool_compare_and_swap_16(
+    void* destination,    // obj
+    const void* exchange, // desired
+    void* compare         // expected
+)
+{
+// memory is either aligned here (and therefore performance is optimal => no warning
+// needed), or it isn't (and performance was already not optimal in the existing path)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Watomic-alignment"
+    return __atomic_compare_exchange(
+        (int128_t*)destination,
+        (int128_t*)compare,
+        (int128_t*)exchange,
+        false,
+        __ATOMIC_SEQ_CST,
+        __ATOMIC_SEQ_CST
+    );
+#pragma GCC diagnostic pop
+}
+#endif
 #endif
 
 /**
