@@ -15,7 +15,8 @@ static const char* getEvidenceValueForHeader(
     const char* header,
     const EvidenceKeyValuePairArray *evidence,
     EvidencePrefix prefix) {
-    for (uint32_t i = 0; i < evidence->count; i++) {
+    uint32_t i;
+    for (i = 0; i < evidence->count; i++) {
         // The evidence for Client Hints should be pure.
         // which means from Http Header.
         if (StringCompare(
@@ -53,7 +54,8 @@ static int constructPseudoEvidence(
     // Iterate through the request headers and construct the evidence
     // If bufferSize = 0; then don't add to the buffer
     const char *requestHeaderName = NULL, *requestHeaderValue = NULL;
-    for (uint32_t i = 0; i < pseudoHeader.requestHeaderCount; i++) {
+    uint32_t i;
+    for (i = 0; i < pseudoHeader.requestHeaderCount; i++) {
         // Get the evidence and add it to the buffer
         requestHeaderName = FIFTYONE_DEGREES_STRING(
             acceptedHeaders->items[pseudoHeader.requestHeaders[i]]
@@ -113,10 +115,12 @@ static bool isEvidencePresentForHeader(
     const EvidencePrefix* acceptedPrefixes,
     size_t numberOfPrefixes) {
     bool matchPrefix = false;
-    for (uint32_t i = 0; i < evidence->count; i++) {
+    uint32_t i;
+    for (i = 0; i < evidence->count; i++) {
         matchPrefix = false;
         // Check if the prefix matches is in the check list
-        for (size_t j = 0; j < numberOfPrefixes; j++) {
+        size_t j;
+        for (j = 0; j < numberOfPrefixes; j++) {
             if (evidence->items[i].prefix == acceptedPrefixes[j]) {
                 matchPrefix = true;
                 break;
@@ -144,7 +148,8 @@ fiftyoneDegreesPseudoHeadersAddEvidence(
     char* buffer = NULL;
     int charAdded = 0;
     if (evidence != NULL && acceptedHeaders != NULL) {
-        for (uint32_t i = 0;
+        uint32_t i;
+        for (i = 0;
             i < acceptedHeaders->pseudoHeadersCount && EXCEPTION_OKAY;
             i++) {
             curHeader =
@@ -158,7 +163,8 @@ fiftyoneDegreesPseudoHeadersAddEvidence(
                     (char*)evidence->pseudoEvidence->items[
                         evidence->pseudoEvidence->count].originalValue;
                 if (buffer != NULL) {
-                    for (size_t j = 0; j < precedenceSize; j++) {
+                    size_t j;
+                    for (j = 0; j < precedenceSize; j++) {
                         charAdded = constructPseudoEvidence(
                             buffer,
                             bufferSize,
@@ -208,7 +214,8 @@ void fiftyoneDegreesPseudoHeadersRemoveEvidence(
     size_t bufferSize) {
     if (evidence != NULL && evidence->pseudoEvidence != NULL) {
         EvidenceKeyValuePair* pair = NULL;
-        for (uint32_t i = 0; i < evidence->pseudoEvidence->count; i++) {
+        uint32_t i;
+        for (i = 0; i < evidence->pseudoEvidence->count; i++) {
             pair = &evidence->pseudoEvidence->items[i];
             pair->field = NULL;
             memset((void*)pair->originalValue, '\0', bufferSize);

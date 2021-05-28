@@ -270,7 +270,8 @@ int fiftyoneDegreesCompareIpAddresses(
 		break;
 	}
 
-	for (uint16_t i = 0; i < compareSize; i++) {
+	uint16_t i;
+	for (i = 0; i < compareSize; i++) {
 		result = ipAddress1[i] - ipAddress2[i];
 		if (result != 0) return result;
 	}

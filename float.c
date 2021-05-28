@@ -133,7 +133,8 @@ fiftyoneDegreesFloatInternal fiftyoneDegreesNativeToFloat(float f) {
 
 int fiftyoneDegreesFloatIsEqual(fiftyoneDegreesFloatInternal f1, fiftyoneDegreesFloatInternal f2) {
 	int isEqual = 0;
-	for (int i = 0; i < FIFTYONE_DEGREES_FLOAT_SIZE; i++) {
+	int i;
+	for (i = 0; i < FIFTYONE_DEGREES_FLOAT_SIZE; i++) {
 		isEqual |= (f1.value[i] == f2.value[i] ? 0 : 1);
 	}
 	return isEqual;

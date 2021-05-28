@@ -105,7 +105,8 @@ static uint32_t countRequestHeaders(const char* pseudoHeaders) {
 
 static void freePseudoHeaders(Headers* headers) {
 	// Free the list of request headers in each pseudo header
-	for (uint32_t i = 0; i < headers->pseudoHeadersCount; i++) {
+	uint32_t i;
+	for (i = 0; i < headers->pseudoHeadersCount; i++) {
 		if (headers->items[headers->pseudoHeaders[i]].requestHeaders != NULL) {
 			Free(headers->items[headers->pseudoHeaders[i]].requestHeaders);
 		}
@@ -123,7 +124,8 @@ static StatusCode updatePseudoHeaders(Headers* headers) {
 	const char* curHeaderName = NULL;
 	size_t headerLength = 0;
 	int noOfRequestHeaders = 0;
-	for (uint32_t i = 0; i < headers->pseudoHeadersCount; i++) {
+	uint32_t i;
+	for (i = 0; i < headers->pseudoHeadersCount; i++) {
 		curPseudoHeader = &headers->items[headers->pseudoHeaders[i]];
 		requestHeaderName = STRING(curPseudoHeader->name.data.ptr);
 		// Calculate the size of request headers array
@@ -142,7 +144,8 @@ static StatusCode updatePseudoHeaders(Headers* headers) {
 						tmp == NULL ?
 						strlen(requestHeaderName) :
 						(size_t)(tmp - requestHeaderName);
-					for (uint32_t j = 0; j < headers->count; j++) {
+					uint32_t j;
+					for (j = 0; j < headers->count; j++) {
 						curHeaderName = STRING(headers->items[j].name.data.ptr);
 						if (headerLength == strlen(curHeaderName) &&
 							StringCompareLength(
