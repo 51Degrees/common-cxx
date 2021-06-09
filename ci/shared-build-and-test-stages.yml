@@ -168,7 +168,6 @@ stages:
           gcc-multilib \
           g++-multilib        
       displayName: 'Install Required Packages'
-      failOnStderr: true
     
     - template: shared-steps-cmake-test.yml
       parameters:
