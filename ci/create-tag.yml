@@ -26,11 +26,11 @@ stages:
     macImage: $(macImage)
 
 - stage: Tagging
+  dependsOn: [Windows,Linux,MacOS]
 
   jobs:
   - job: Tagging
     displayName: Create a tag
-    dependsOn: [Windows,Linux,MacOS]
 
     variables: 
       # Access token for the git repository. Used by the git tag task.
