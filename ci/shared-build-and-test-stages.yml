@@ -120,7 +120,7 @@ stages:
           BuildConfiguration: Release  
           BuildArguments: -DNoThreading=ON
     steps:
-    - template: ci/steps-cmake-test.yml
+    - template: shared-steps-cmake-test.yml
       parameters:
         platformName: 'Mac'
         buildConfiguration: '$(BuildConfiguration)'

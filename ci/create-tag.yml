@@ -19,7 +19,7 @@ variables:
 - template: shared-variables.yml
 
 stages:
-- template: shared-build-and-test-stage.yml
+- template: shared-build-and-test-stages.yml
   parameters:
     windowsImage: $(windowsImage)
     linuxImage: $(linuxImage)
