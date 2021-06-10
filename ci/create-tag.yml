@@ -61,7 +61,4 @@ stages:
       inputs:
         tagUser: 'Azure DevOps'
         tagEmail: 'CIUser@51Degrees.com'
-    # Only create the tag if we're on master, develop or a release branch.
-    # This can be overridden by setting the 'ForceTagCommit' variable to true.
-      condition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/master'), or(eq(variables['Build.SourceBranch'], 'refs/heads/develop'), or(startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'), eq('true', variables['ForceTagCommit'])))))
 
