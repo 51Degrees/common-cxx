@@ -74,15 +74,15 @@ typedef struct fiftyone_degrees_ip_address_t {
 
 /**
  * Parse a single IP address string.
+ * @param malloc method to allocate the IP address
  * @param start of the string containing the IP address to parse
  * @param end of the string containing the IP address to parse
- * @param address memory to write parsed IP address into
- * @return <c>true</c> if address was parsed correctly, <c>false</c> otherwise
+ * @return pointer to the parsed IP address
  */
-EXTERNAL bool fiftyoneDegreesIpAddressParse(
-	const char * const start,
-	const char * const end,
-	fiftyoneDegreesIpAddress * const address);
+EXTERNAL fiftyoneDegreesIpAddress* fiftyoneDegreesIpAddressParse(
+	void*(*malloc)(size_t),
+	const char *start,
+	const char *end);
 
 /**
  * Compare two IP addresses in its binary form

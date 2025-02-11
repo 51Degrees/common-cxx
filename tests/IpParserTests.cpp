@@ -23,7 +23,6 @@
 #include "pch.h"
 #include "../ip.h"
 #include "../fiftyone.h"
-#include <memory>
 
 static bool CheckResult(byte* result, byte* expected, uint16_t size) {
 	bool match = true;
@@ -35,11 +34,9 @@ static bool CheckResult(byte* result, byte* expected, uint16_t size) {
 	return match;
 }
 
-static std::unique_ptr<IpAddress> parseIpAddressString(const char * const ipString) {
-	std::unique_ptr<IpAddress> ipPtr = std::make_unique<IpAddress>();
+static IpAddress* parseIpAddressString(const char * const ipString) {
 	const char * const end = ipString ? ipString + strlen(ipString) : nullptr;
-	const bool parsed = IpAddressParse(ipString, end, ipPtr.get());
-	return parsed ? std::move(ipPtr) : nullptr;
+	return IpAddressParse(Malloc, ipString, end);
 }
 
  // ------------------------------------------------------------------------------
@@ -48,55 +45,62 @@ static std::unique_ptr<IpAddress> parseIpAddressString(const char * const ipStri
 TEST(ParseIp, ParseIp_Ipv4_Low)
 {
 	const char* ip = "0.0.0.0";
-	auto const result = parseIpAddressString(ip);
+	IpAddress* const result = parseIpAddressString(ip);
 	byte expected[] = { 0, 0, 0, 0 };
 	EXPECT_TRUE(CheckResult(result->value, expected, sizeof(expected))) <<
 		L"Expected result to be '0.0.0.0'";
+	Free(result);
 }
 TEST(ParseIp, ParseIp_Ipv4_High)
 {
-	auto const result = parseIpAddressString("255.255.255.255");
+	IpAddress* const result = parseIpAddressString("255.255.255.255");
 	byte expected[] = { 255, 255, 255, 255 };
 	EXPECT_TRUE(CheckResult(result->value, expected, sizeof(expected)))
 		<< L"Expected result to be '255.255.255.255'";
+	Free(result);
 }
 TEST(ParseIp, ParseIp_Ipv4_PortNumber)
 {
-	auto const result = parseIpAddressString("1.2.3.4:80");
+	IpAddress* const result = parseIpAddressString("1.2.3.4:80");
 	byte expected[] = { 1, 2, 3, 4 };
 	EXPECT_TRUE(CheckResult(result->value, expected, sizeof(expected)))
 		<< L"Expected result to be '1.2.3.4'";
+	Free(result);
 }
 TEST(ParseIp, ParseIp_Ipv4_CIDRFormat)
 {
-	auto const result = parseIpAddressString("1.2.3.4/32");
+	IpAddress* const result = parseIpAddressString("1.2.3.4/32");
 	byte expected[] = { 1, 2, 3, 4 };
 	EXPECT_TRUE(CheckResult(result->value, expected, sizeof(expected)))
 		<< L"Expected result to be '1.2.3.4'";
+	Free(result);
 }
 // ------------------------------------------------------------------------------
 // IPv6 tests
 // ------------------------------------------------------------------------------
 TEST(ParseIp, ParseIp_Ipv6_Low)
 {
-	auto const result = parseIpAddressString("0:0:0:0:0:0:0:0");
+	IpAddress* const result = parseIpAddressString("0:0:0:0:0:0:0:0");
 	byte expected[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	EXPECT_TRUE(CheckResult(result->value, expected, sizeof(expected)))
 		<< L"Expected result to be '0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0'";
+	Free(result);
 }
 TEST(ParseIp, ParseIp_Ipv6_Low_Abbreviated)
 {
-	auto const result = parseIpAddressString("::");
+	IpAddress* const result = parseIpAddressString("::");
 	byte expected[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	EXPECT_TRUE(CheckResult(result->value, expected, sizeof(expected)))
 		<< L"Expected result to be '0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0'";
+	Free(result);
 }
 TEST(ParseIp, ParseIp_Ipv6_High)
 {
-	auto const result = parseIpAddressString("FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF");
+	IpAddress* const result = parseIpAddressString("FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF");
 	byte expected[] = { 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255 };
 	EXPECT_TRUE(CheckResult(result->value, expected, sizeof(expected)))
 		<< L"Expected result to be '255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255'";
+	Free(result);
 }
 TEST(ParseIp, ParseIp_Ipv6_AbbreviatedStart)
 {
@@ -104,52 +108,56 @@ TEST(ParseIp, ParseIp_Ipv6_AbbreviatedStart)
 	byte expected[IPV6_LENGTH] =
 		{ 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255 };
 
-	IpAddress result;
-	const bool parsed =
+	IpAddress* result =
 		fiftyoneDegreesIpAddressParse(
+			Malloc,
 			ipv6AbbreviatedStart,
-			ipv6AbbreviatedStart + strlen(ipv6AbbreviatedStart),
-			&result);
+			ipv6AbbreviatedStart + strlen(ipv6AbbreviatedStart));
 
-	EXPECT_TRUE(parsed) << "Abbreviated start IPv6 address "
+	EXPECT_TRUE(result != nullptr) << "Abbreviated start IPv6 address "
 		"should be successfully parsed, where the address is " <<
 		ipv6AbbreviatedStart << ".";
 
-	EXPECT_TRUE(result.type == IP_TYPE_IPV6) <<
+	EXPECT_TRUE(result->type == IP_TYPE_IPV6) <<
 		"IP address version was not identified correctly where where the " <<
 		"IP address is " << ipv6AbbreviatedStart << ".";
 
 	EXPECT_TRUE(
-		CheckResult(result.value, expected, IPV6_LENGTH)) <<
+		CheckResult(result->value, expected, IPV6_LENGTH)) <<
 		"The value of the abbreivated start IPv6 address is not correctly parsed.";
+    Free(result);
 }
 TEST(ParseIp, ParseIp_Ipv6_AbbreviatedMiddle)
 {
-	auto const result = parseIpAddressString("FFFF:FFFF::FFFF:FFFF");
+	IpAddress* const result = parseIpAddressString("FFFF:FFFF::FFFF:FFFF");
 	byte expected[] = { 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255 };
 	EXPECT_TRUE(CheckResult(result->value, expected, sizeof(expected)))
 		<< L"Expected result to be '255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255'";
+    Free(result);
 }
 TEST(ParseIp, ParseIp_Ipv6_AbbreviatedEnd)
 {
-	auto const result = parseIpAddressString("FFFF:FFFF:FFFF:FFFF::");
+	IpAddress* const result = parseIpAddressString("FFFF:FFFF:FFFF:FFFF::");
 	byte expected[] = { 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0 };
 	EXPECT_TRUE(CheckResult(result->value, expected, sizeof(expected)))
 		<< L"Expected result to be '255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0'";
+    Free(result);
 }
 TEST(ParseIp, ParseIp_Ipv6_PortNumber)
 {
-	auto const result = parseIpAddressString("[2001::1]:80");
+	IpAddress* const result = parseIpAddressString("[2001::1]:80");
 	byte expected[] = { 32, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
 	EXPECT_TRUE(CheckResult(result->value, expected, sizeof(expected)))
 		<< L"Expected result to be '32, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1'";
+    Free(result);
 }
 TEST(ParseIp, ParseIp_Ipv6_CIDRFormat)
 {
-	auto const result = parseIpAddressString("2001::1/128");
+	IpAddress* const result = parseIpAddressString("2001::1/128");
 	byte expected[] = { 32, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 };
 	EXPECT_TRUE(CheckResult(result->value, expected, sizeof(expected)))
 		<< L"Expected result to be '32, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1'";
+    Free(result);
 }
 
 // ------------------------------------------------------------------------------
@@ -161,75 +169,85 @@ TEST(ParseIp, ParseIp_Invalid_ipv4OutOfRange)
 	byte expected[IPV4_LENGTH] =
 		{255, 255, 255, 255};
 
-	IpAddress result;
-	const bool parsed  =
+	IpAddress* result =
 		fiftyoneDegreesIpAddressParse(
+			Malloc,
 			ipv4OutOfRange,
-			ipv4OutOfRange + strlen(ipv4OutOfRange),
-			&result);
+			ipv4OutOfRange + strlen(ipv4OutOfRange));
 
-	EXPECT_TRUE(parsed) << "Out of range IPv4 address "
+	EXPECT_TRUE(result != nullptr) << "Out of range IPv4 address "
 		"should be successfull parsed, where the address is " <<
 		ipv4OutOfRange << ".";
 
-	EXPECT_TRUE(result.type == IP_TYPE_IPV4) <<
+	EXPECT_TRUE(result->type == IP_TYPE_IPV4) <<
 		"IP address version was not identified correctly where where the " <<
 		"IP address is " << ipv4OutOfRange << ".";
 
 	EXPECT_TRUE(
-		CheckResult(result.value, expected, IPV4_LENGTH)) <<
+		CheckResult(result->value, expected, IPV4_LENGTH)) <<
 		"The value of the out of range IPv4 address is not correctly restricted "
 		"at 255.";
+    Free(result);
 }
 TEST(ParseIp, ParseIp_Invalid_ipv4TooMany)
 {
-	auto const result = parseIpAddressString("1.2.3.4.5");
+	IpAddress* const result = parseIpAddressString("1.2.3.4.5");
 	EXPECT_FALSE(result);
+	Free(result);
 }
 TEST(ParseIp, ParseIp_Invalid_ipv4TooFew)
 {
-	auto const result = parseIpAddressString("1.2.3");
+	IpAddress* const result = parseIpAddressString("1.2.3");
 	EXPECT_FALSE(result);
+	Free(result);
 }
 TEST(ParseIp, ParseIp_Invalid_letters)
 {
-	auto const result = parseIpAddressString("a.b.c.d");
+	IpAddress* const result = parseIpAddressString("a.b.c.d");
 	EXPECT_FALSE(result);
+	Free(result);
 }
 TEST(ParseIp, ParseIp_Invalid_emptyString)
 {
-	auto const result = parseIpAddressString("");
+	IpAddress* const result = parseIpAddressString("");
 	EXPECT_FALSE(result);
+	Free(result);
 }
 TEST(ParseIp, ParseIp_Invalid_null)
 {
-	auto const result = parseIpAddressString(nullptr);
+	IpAddress* const result = parseIpAddressString(nullptr);
 	EXPECT_FALSE(result);
+	Free(result);
 }
 TEST(ParseIp, ParseIp_Invalid_Number)
 {
-	auto const result = parseIpAddressString("1234");
+	IpAddress* const result = parseIpAddressString("1234");
 	EXPECT_FALSE(result);
+	Free(result);
 }
 TEST(ParseIp, ParseIp_Invalid_ipv6OutOfRange)
 {
-	auto const result = parseIpAddressString("10000::1");
+	IpAddress* const result = parseIpAddressString("10000::1");
 	EXPECT_FALSE(result);
+	Free(result);
 }
 TEST(ParseIp, ParseIp_Invalid_ipv6InvalidLetter)
 {
-	auto const result = parseIpAddressString("GFFF::1");
+	IpAddress* const result = parseIpAddressString("GFFF::1");
 	EXPECT_FALSE(result);
+	Free(result);
 }
 TEST(ParseIp, ParseIp_Invalid_ipv6TooMany)
 {
-	auto const result = parseIpAddressString("1:1:1:1:1:1:1:1:1");
+	IpAddress* const result = parseIpAddressString("1:1:1:1:1:1:1:1:1");
 	EXPECT_FALSE(result);
+	Free(result);
 }
 TEST(ParseIp, ParseIp_Invalid_ipv6TooFew)
 {
-	auto const result = parseIpAddressString("1:1:1:1:1:1:1");
+	IpAddress* const result = parseIpAddressString("1:1:1:1:1:1:1");
 	EXPECT_FALSE(result);
+	Free(result);
 }
 // ------------------------------------------------------------------------------
 // Comparison
