@@ -355,9 +355,7 @@ MAP_TYPE(IpAddress)
 #define StringBuilderComplete fiftyoneDegreesStringBuilderComplete /**< Synonym for fiftyoneDegreesStringBuilderComplete */
 #define EvidenceIterateMethod fiftyoneDegreesEvidenceIterateMethod /**< Synonym for fiftyoneDegreesEvidenceIterateMethod */
 #define OverrideHasValueForRequiredPropertyIndex fiftyoneDegreesOverrideHasValueForRequiredPropertyIndex /**< Synonym for fiftyoneDegreesOverrideHasValueForRequiredPropertyIndex */
-#define IpAddressesFree fiftyoneDegreesIpAddressesFree /**< Synonym for fiftyoneDegreesIpAddressesFree */
 #define IpAddressParse fiftyoneDegreesIpAddressParse /**< Synonym for fiftyoneDegreesIpAddressParse */
-#define IpAddressesParse fiftyoneDegreesIpAddressesParse /**< Synonym for fiftyoneDegreesIpAddressesParse */
 #define IpAddressesCompare fiftyoneDegreesIpAddressesCompare /**< Synonym for fiftyoneDegreesIpAddressesCompare */
 
 /* <-- only one asterisk to avoid inclusion in documentation

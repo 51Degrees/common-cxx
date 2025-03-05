@@ -265,7 +265,7 @@ EXTERNAL fiftyoneDegreesStringBuilder* fiftyoneDegreesStringBuilderAddChar(
  */
 EXTERNAL fiftyoneDegreesStringBuilder* fiftyoneDegreesStringBuilderAddInteger(
 	fiftyoneDegreesStringBuilder* builder,
-	int const value);
+	int64_t const value);
 
 /**
  * Adds the string to the buffer.
