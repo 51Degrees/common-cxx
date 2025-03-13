@@ -75,9 +75,18 @@ if (32bit AND NOT IS_ARM)
 	endif()
 endif()
 
-if (NOT MSVC AND NOT APPLE)
-    find_package(GccAtomic)
-    set(EXE_LINKER_FLAGS "${EXE_LINKER_FLAGS} -latomic")
+# Clang can avoid using libatomic if the CPU support native instructions for
+# the required operations. The CPUs are already over 20 and 10 (for x86_64 and
+# aarch64 respectively) years old, so it should be safe to enable. Users can
+# always override -march if required.
+if (CMAKE_C_COMPILER_ID STREQUAL "Clang") # matching 'AppleClang' is intentionally avoided
+	if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+		add_compile_options(-march=x86-64-v2) # target CPUs that support `cmpxchg16b` instruction
+	elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+		add_compile_options(-march=armv8.1-a) # target CPUs that support `caspal` instruction
+	endif()
+elseif (NOT MSVC AND NOT APPLE)
+	add_link_options(-latomic)
 endif()
 
 if (MemoryOnly)
@@ -117,7 +126,7 @@ endif()
 FILE(GLOB COMC_SRC ${CMAKE_CURRENT_LIST_DIR}/*.c)
 FILE(GLOB COMC_H ${CMAKE_CURRENT_LIST_DIR}/*.h)
 add_library(fiftyone-common-c ${COMC_SRC} ${COMC_H})
-target_link_libraries(fiftyone-common-c	${CMAKE_THREAD_LIBS_INIT} ${GCCLIBATOMIC_LIBRARY})
+target_link_libraries(fiftyone-common-c	${CMAKE_THREAD_LIBS_INIT})
 
 FILE(GLOB COMCPP_SRC ${CMAKE_CURRENT_LIST_DIR}/*.cpp)
 FILE(GLOB COMCPP_H ${CMAKE_CURRENT_LIST_DIR}/*.hpp)
@@ -138,7 +147,7 @@ else ()
 	if (TESTCOVERAGE_ENABLED)
 		message("-- fiftyone-common-c(xx)-cov adding targets with code coverage")
 		add_library(fiftyone-common-c-cov ${COMC_SRC} ${COMC_H})
-		target_link_libraries(fiftyone-common-c-cov	${CMAKE_THREAD_LIBS_INIT} ${GCCLIBATOMIC_LIBRARY})
+		target_link_libraries(fiftyone-common-c-cov	${CMAKE_THREAD_LIBS_INIT})
 		add_library(fiftyone-common-cxx-cov ${COMCPP_SRC} ${COMCPP_H})
 		target_link_libraries(fiftyone-common-cxx-cov fiftyone-common-c-cov)
 		target_compile_options(fiftyone-common-c-cov PRIVATE "--coverage")
