@@ -26,6 +26,7 @@
 #include <string>
 #include "Exceptions.hpp"
 #include "collection.h"
+#include "storedBinaryValue.h"
 #include "string.h"
 
 
@@ -57,16 +58,37 @@ namespace FiftyoneDegrees {
 			static string getString(
 				fiftyoneDegreesCollection *stringsCollection,
 				uint32_t offset) {
+				return getValue(
+					stringsCollection,
+					offset,
+					FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING); // legacy contract
+			}
+
+			/**
+			 * Get a copy of a string from the strings collection at the offset
+			 * provided.
+			 * @param stringsCollection pointer to the collection to copy the
+			 * string from
+			 * @param offset offset in the strings collection of the string to
+			 * copy
+			 * @param storedValueType format of byte array representation.
+			 * @return string copy of the string at the offset provided
+			 */
+			static string getValue(
+				fiftyoneDegreesCollection *stringsCollection,
+				uint32_t offset,
+				fiftyoneDegreesPropertyValueType storedValueType) {
 				FIFTYONE_DEGREES_EXCEPTION_CREATE;
 				string result;
 				fiftyoneDegreesCollectionItem item;
 				fiftyoneDegreesString *str;
 				fiftyoneDegreesDataReset(&item.data);
-				str = fiftyoneDegreesStringGet(
+				str = &fiftyoneDegreesStoredBinaryValueGet(
 					stringsCollection,
 					offset,
+					storedValueType,
 					&item,
-					exception);
+					exception)->stringValue;
 				FIFTYONE_DEGREES_EXCEPTION_THROW;
 					if (str != nullptr) {
 						result.append(&str->value);
