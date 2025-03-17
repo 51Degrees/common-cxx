@@ -75,16 +75,23 @@ if (32bit AND NOT IS_ARM)
 	endif()
 endif()
 
-# Clang can avoid using libatomic if the CPU support native instructions for
+# Clang can avoid using libatomic if the CPU supports native instructions for
 # the required operations. The CPUs are already over 20 and 10 (for x86_64 and
 # aarch64 respectively) years old, so it should be safe to enable. Users can
 # always override -march if required.
 if (CMAKE_C_COMPILER_ID STREQUAL "Clang") # matching 'AppleClang' is intentionally avoided
-	if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
-		add_compile_options(-march=x86-64-v2) # target CPUs that support `cmpxchg16b` instruction
-	elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
-		add_compile_options(-march=armv8.1-a) # target CPUs that support `caspal` instruction
+	if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64") # target CPUs that support `cmpxchg16b` instruction
+		set (CLANG_MARCH "x86-64-v2")
+		if (CMAKE_C_COMPILER MATCHES "zig$")
+			set (CLANG_MARCH "x86_64_v2") # Zig identifies as Clang, but has different march names
+		endif()
+	elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64") # target CPUs that support `caspal` instruction
+		set (CLANG_MARCH "armv8.1-a")
+		if (CMAKE_C_COMPILER MATCHES "zig$")
+			set (CLANG_MARCH "generic+v8_1a") # Zig identifies as Clang, but has different march names
+		endif()
 	endif()
+	add_compile_options("-march=${CLANG_MARCH}")
 	set(MAYBE_LIBATOMIC)
 elseif (NOT MSVC AND NOT APPLE)
 	set(MAYBE_LIBATOMIC -latomic)
