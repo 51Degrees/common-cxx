@@ -75,19 +75,9 @@ if (32bit AND NOT IS_ARM)
 	endif()
 endif()
 
-# Clang can avoid using libatomic if the CPU support native instructions for
-# the required operations. The CPUs are already over 20 and 10 (for x86_64 and
-# aarch64 respectively) years old, so it should be safe to enable. Users can
-# always override -march if required.
-if (CMAKE_C_COMPILER_ID STREQUAL "Clang") # matching 'AppleClang' is intentionally avoided
-	if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
-		add_compile_options(-march=x86-64-v2) # target CPUs that support `cmpxchg16b` instruction
-	elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
-		add_compile_options(-march=armv8.1-a) # target CPUs that support `caspal` instruction
-	endif()
-	set(MAYBE_LIBATOMIC)
-elseif (NOT MSVC AND NOT APPLE)
-	set(MAYBE_LIBATOMIC -latomic)
+if (NOT MSVC AND NOT APPLE)
+	# Ideally this would use -Wl,--push-state but not all linkers support it
+	set(MAYBE_LIBATOMIC -Wl,--as-needed -latomic -Wl,--no-as-needed)
 endif()
 
 if (MemoryOnly)
