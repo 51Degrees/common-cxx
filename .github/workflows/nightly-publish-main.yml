@@ -12,6 +12,6 @@ jobs:
     uses: 51Degrees/common-ci/.github/workflows/nightly-publish-main.yml@main
     with:
       repo-name: ${{ github.event.repository.name }}
-      build-platform: ubuntu-20.04
+      org-name: ${{ github.event.repository.owner.login }}
     secrets:
       token: ${{ secrets.ACCESS_TOKEN }}
