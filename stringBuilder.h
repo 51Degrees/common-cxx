@@ -115,6 +115,16 @@ EXTERNAL fiftyoneDegreesStringBuilder* fiftyoneDegreesStringBuilderAddChar(
  */
 EXTERNAL fiftyoneDegreesStringBuilder* fiftyoneDegreesStringBuilderAddInteger(
 	fiftyoneDegreesStringBuilder* builder,
+	int32_t const value);
+
+/**
+ * Adds the 64 bit integer to the buffer.
+ * @param builder to add the character to
+ * @param value integer to add
+ * @return pointer to the buffer passed
+ */
+EXTERNAL fiftyoneDegreesStringBuilder* fiftyoneDegreesStringBuilderAddLong(
+	fiftyoneDegreesStringBuilder* builder,
 	int64_t const value);
 
 /**
