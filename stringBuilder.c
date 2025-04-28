@@ -124,10 +124,24 @@ fiftyoneDegreesStringBuilder* fiftyoneDegreesStringBuilderAddChar(
 fiftyoneDegreesStringBuilder* fiftyoneDegreesStringBuilderAddInteger(
 	fiftyoneDegreesStringBuilder* builder,
 	int32_t const value) {
-    // 32-bit INT_MIN is  -2,147,483,648 => 12 characters
+	// 32-bit INT_MIN is  -2,147,483,648 => 12 characters
 	char temp[12];
 	if (snprintf(temp, sizeof(temp), "%" PRId32, value) > 0) {
 		StringBuilderAddChars(
+			builder,
+			temp,
+			strlen(temp));
+	}
+	return builder;
+}
+
+fiftyoneDegreesStringBuilder* fiftyoneDegreesStringBuilderAddLong(
+	fiftyoneDegreesStringBuilder* builder,
+	int64_t const value) {
+		// 64-bit INT_MIN is  -9,223,372,036,854,775,807 => 21 characters
+		char temp[22];
+		if (snprintf(temp, sizeof(temp), "%" PRId64, value) > 0) {
+			StringBuilderAddChars(
 			builder,
 			temp,
 			strlen(temp));
