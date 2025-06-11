@@ -139,7 +139,7 @@ StringBuilder* fiftyoneDegreesStringBuilderAddDouble(
 	fiftyoneDegreesStringBuilder * const builder,
 	const double value,
 	const uint8_t decimalPlaces) {
-
+	bool addNegative = FALSE;
 	const int digitPlaces = MAX_DOUBLE_DECIMAL_PLACES < decimalPlaces
 		? MAX_DOUBLE_DECIMAL_PLACES : decimalPlaces;
 	int remDigits = digitPlaces;
@@ -148,6 +148,12 @@ StringBuilder* fiftyoneDegreesStringBuilderAddDouble(
 	double fracPart = value - intPart;
 
 	if (fracPart < 0) {
+		if (intPart == 0) {
+			// Handle negative numbers <1. The integer part will just be zero,
+			// which is neither positive or negative. So the negative must be
+			// added.
+			addNegative = TRUE;
+		}
 		fracPart = -fracPart;
 	}
 	if (remDigits <= 0 && fracPart >= 0.5) {
@@ -208,7 +214,9 @@ StringBuilder* fiftyoneDegreesStringBuilderAddDouble(
 	for (; nextDigit >= digits; --nextDigit) {
 		*nextDigit += '0';
 	}
-
+	if (addNegative) {
+		StringBuilderAddChar(builder, '-');
+	}
 	StringBuilderAddInteger(builder, intPart);
 	StringBuilderAddChars(builder, floatTail, digitsToAdd + 1);
 	return builder;
