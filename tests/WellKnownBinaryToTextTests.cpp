@@ -141,6 +141,19 @@ TEST(WKBToT, WKBToT_Test_Point_2D_XDR)
 	convertAndCompare(wkbBytes, expected, "Point 2D (XDR)");
 }
 
+TEST(WKBToT, WKBToT_Test_Point_NegativeZero)
+{
+	const byte wkbBytes[] = {
+		0x01,
+		0x01, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe0, 0xbf,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x31, 0x40,
+	};
+	const char * const expected = "POINT(-0.5 17.25)";
+
+	convertAndCompare(wkbBytes, expected, "Point 2D (Negative < 1)");
+}
+
 TEST(WKBToT, WKBToT_Test_Point_2D_3places)
 {
 	const byte wkbBytes[] = {
