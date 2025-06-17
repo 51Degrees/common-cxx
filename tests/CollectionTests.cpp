@@ -28,14 +28,17 @@
 #include "../CollectionConfig.hpp"
 #include "../Exceptions.hpp"
 #include "../collection.h"
+#include "../collectionKeyTypes.h"
 #include "../list.h"
 
 using namespace FiftyoneDegrees::Common;
 
 class CollectionTestData {
 public:
-	CollectionTestData(uint32_t count) {
-		this->count = count;
+	const fiftyoneDegreesCollectionKeyType keyType;
+	CollectionTestData(
+		uint32_t count,
+		const fiftyoneDegreesCollectionKeyType &keyType): keyType(keyType), count(count) {
 		map = new uint32_t[count];
 		data = nullptr;
 	}
@@ -58,7 +61,7 @@ public:
 #endif
 	virtual uint32_t outOfRange() { return 0; }
 	fiftyoneDegreesCollectionItemComparer itemComparer;
-	uint32_t count;
+	const uint32_t count;
 	byte *data;
 	size_t size;
 	uint32_t elementSize;
@@ -68,11 +71,11 @@ public:
 
 class CollectionTestDataFixed : public CollectionTestData {
 public:
-	CollectionTestDataFixed(uint32_t count) : CollectionTestData(count) {
+	CollectionTestDataFixed(uint32_t count) : CollectionTestData(count, *CollectionKeyType_Integer) {
 		elementSize = sizeof(int);
 		size = (count * elementSize) + sizeof(uint32_t);
 		data = new byte[size];
-		int *values = (int*)(data + sizeof(uint32_t));
+		uint32_t * const values = (uint32_t*)(data + sizeof(uint32_t));
 		for (uint32_t i = 0; i < count; i++) {
 			values[i] = i;
 			map[i] = i;
@@ -86,25 +89,24 @@ public:
 		return map[count - 1] + 1;
 	}
 
-#ifdef _MSC_VER
-	// This is a mock function so not all parameters can be used.
-#pragma warning (disable: 4100)
-#endif
 	static int itemComparerInt(
 		void *state,
 		fiftyoneDegreesCollectionItem *item,
-		long curIndex,
+		fiftyoneDegreesCollectionKey key,
 		fiftyoneDegreesException *exception) {
-		return *((int*)item->data.ptr) - *(int*)state;
+#		ifdef _MSC_VER
+		UNREFERENCED_PARAMETER(key);
+		UNREFERENCED_PARAMETER(exception);
+#		endif
+		const uint32_t * const itemValue = (const uint32_t*)item->data.ptr;
+		const uint32_t * const stateValue = (const uint32_t*)state;
+		return *itemValue - *stateValue;
 	}
 };
-#ifdef _MSC_VER
-#pragma warning (default: 4100)
-#endif
 
 class CollectionTestDataVariable : public CollectionTestData {
 public:
-	CollectionTestDataVariable(uint32_t count) : CollectionTestData(count) {
+	CollectionTestDataVariable(uint32_t count) : CollectionTestData(count, *CollectionKeyType_String) {
 		size = sizeof(uint32_t);
 		for (uint32_t i = 0; i < count; i++) {
 			size += strlen(TEST_STRINGS[i]) + 1;
@@ -127,23 +129,20 @@ public:
 		return (uint32_t)(size + 1);
 	}
 
-#ifdef _MSC_VER
-	// This is a mock function so not all parameters can be used
-#pragma warning (disable: 4100)
-#endif
 	static int itemComparerString(
 		void *state,
 		fiftyoneDegreesCollectionItem *item,
-		long curIndex,
+		fiftyoneDegreesCollectionKey key,
 		fiftyoneDegreesException *exception) {
+#		ifdef _MSC_VER
+		UNREFERENCED_PARAMETER(key);
+		UNREFERENCED_PARAMETER(exception);
+#		endif
 		const char *itemString = FIFTYONE_DEGREES_STRING(item->data.ptr);
 		const char *targetString = (const char *)state;
 		return strcmp(itemString, targetString);
 	}
 };
-#ifdef _MSC_VER
-#pragma warning (default: 4100)
-#endif
 
 class CollectionTestDataVariableSize : public CollectionTestDataVariable {
 public:
@@ -203,9 +202,13 @@ public:
 		fiftyoneDegreesCollectionItem item;
 		fiftyoneDegreesDataReset(&item.data);
 		for (uint32_t i = 0; i < data->count; i++) {
+			const fiftyoneDegreesCollectionKey key {
+				data->map[i],
+				&data->keyType,
+			};
 			collection->get(
 				collection,
-				data->map[i],
+				&key,
 				&item,
 				exception);
 			FIFTYONE_DEGREES_EXCEPTION_THROW
@@ -217,7 +220,6 @@ public:
 	}
 
 	void binarySearch() {
-		
 		if (this->data->isCount == false) {
 			cout << "Skipping binary search test for as the collection "
 				<< "contains variable size elements.\n";
@@ -229,20 +231,30 @@ public:
 			fiftyoneDegreesDataReset(&targetItem.data);
 
 			for (uint32_t i = 0; i < data->count; i++) {
-				collection->get(
-					collection,
+				const fiftyoneDegreesCollectionKey key {
 					data->map[i],
+					&data->keyType,
+				};
+				auto const theValue = (const uint32_t *)collection->get(
+					collection,
+					&key,
 					&targetItem,
 					exception);
+#				ifdef _MSC_VER
+				UNREFERENCED_PARAMETER(theValue);
+#				endif
 				FIFTYONE_DEGREES_EXCEPTION_THROW;
-				EXPECT_TRUE(fiftyoneDegreesCollectionBinarySearch(
+				const fiftyoneDegreesCollectionIndexOrOffset end = {data->count - 1};
+				const long index = fiftyoneDegreesCollectionBinarySearch(
 					collection,
 					&resultItem,
-					0,
-					data->count - 1,
+					fiftyoneDegreesCollectionIndexOrOffset_Zero,
+					end,
+					&data->keyType,
 					targetItem.data.ptr,
 					data->itemComparer,
-					exception) >= 0);
+					exception);
+				EXPECT_GE(index, 0);
 				EXPECT_FALSE(FIFTYONE_DEGREES_EXCEPTION_FAILED);
 				data->verify(&resultItem.data, i);
 				if (fiftyoneDegreesCollectionGetIsMemoryOnly() == false) {
@@ -269,11 +281,13 @@ public:
 				(int)data->count + 3,
 			};
 			for (uint32_t i = 0; i < sizeof(DummyIDs) / sizeof(DummyIDs[0]); i++) {
+				const fiftyoneDegreesCollectionIndexOrOffset end = {data->count - 1};
 				EXPECT_EQ(-1, fiftyoneDegreesCollectionBinarySearch(
 					collection,
 					&resultItem,
-					0,
-					data->count - 1,
+					fiftyoneDegreesCollectionIndexOrOffset_Zero,
+					end,
+					&data->keyType,
 					&(DummyIDs[i]),
 					data->itemComparer,
 					exception));
@@ -286,9 +300,13 @@ public:
 		FIFTYONE_DEGREES_EXCEPTION_CREATE
 		fiftyoneDegreesCollectionItem item;
 		fiftyoneDegreesDataReset(&item.data);
+		const fiftyoneDegreesCollectionKey key {
+			data->outOfRange(),
+			&data->keyType,
+		};
 		EXPECT_EQ(collection->get(
 			collection,
-			data->outOfRange(),
+			&key,
 			&item,
 			exception), nullptr) << "Returned pointer should always be "
 			"null if out of range";
@@ -311,10 +329,14 @@ public:
 		for (uint32_t i = 0; i < data->count; i++) {
 			uint32_t index = (uint32_t)(rand() % data->count);
 			ASSERT_LT(index, data->count) << "Random index must be less than "
-				"the count of available test data items";
+			"the count of available test data items";
+			const fiftyoneDegreesCollectionKey key {
+					data->map[index],
+				&data->keyType,
+			};
 			EXPECT_NE(collection->get(
-				collection, 
-				data->map[index], 
+				collection,
+				&key,
 				&item, 
 				exception), nullptr);
 			FIFTYONE_DEGREES_EXCEPTION_THROW
@@ -337,9 +359,13 @@ public:
 		while (list.count < list.capacity && i < data->count) {
 			fiftyoneDegreesCollectionItem item;
 			fiftyoneDegreesDataReset(&item.data);
+			const fiftyoneDegreesCollectionKey key {
+				data->map[i],
+				&data->keyType,
+			};
 			EXPECT_NE(collection->get(
 				collection,
-				data->map[i],
+				&key,
 				&item,
 				exception), nullptr);
 			FIFTYONE_DEGREES_EXCEPTION_THROW
@@ -470,7 +496,6 @@ public:
 			readMethod);
 		ASSERT_NE(collection, nullptr);
 		if (fiftyoneDegreesCollectionGetIsMemoryOnly()) {
-			ASSERT_EQ(collection->next, nullptr);
 			ASSERT_EQ(nullptr, collection->release) <<
 				L"Collections were compiled for memory only operation, so "
 				"the release method should always be null.";
@@ -490,11 +515,11 @@ public:
 	}
 
 	static void* Read(
-		const fiftyoneDegreesCollectionFile *file,
-		uint32_t index,
-		fiftyoneDegreesData *data,
-		fiftyoneDegreesException *exception) {
-		return fiftyoneDegreesCollectionReadFileFixed(file, index, data, exception);
+		const fiftyoneDegreesCollectionFile * const file,
+		const fiftyoneDegreesCollectionKey * const key,
+		fiftyoneDegreesData * const data,
+		fiftyoneDegreesException * const exception) {
+		return fiftyoneDegreesCollectionReadFileFixed(file, key, data, exception);
 	}
 };
 
@@ -507,9 +532,9 @@ public:
 
 	static void* Read(
 		const fiftyoneDegreesCollectionFile *file,
-		uint32_t offset,
-		fiftyoneDegreesData *data,
-		fiftyoneDegreesException *exception) {
+		const fiftyoneDegreesCollectionKey * const key,
+		fiftyoneDegreesData * const data,
+		fiftyoneDegreesException * const exception) {
 		stringstream stream;
 		char c;
 		uint32_t length = 1;
@@ -518,7 +543,7 @@ public:
 		fiftyoneDegreesFileHandle *handle =
 			fiftyoneDegreesCollectionReadFilePosition(
 				file,
-				offset,
+				key->indexOrOffset.offset,
 				exception);
 		if (handle == NULL || FIFTYONE_DEGREES_EXCEPTION_FAILED) {
 			return NULL;
@@ -559,7 +584,12 @@ public:
 	}
 };
 
-static uint32_t getIntArraySize(void *initial) {
+static uint32_t getIntArraySize(
+	const void *initial,
+    fiftyoneDegreesException * const exception) {
+#	ifdef _MSC_VER
+    UNREFERENCED_PARAMETER(exception);
+#	endif
 	return (uint32_t)(sizeof(int32_t) * ((*(int32_t*)initial) + 1));
 }
 
@@ -568,18 +598,16 @@ static uint32_t getIntArraySize(void *initial) {
 * structure.
 */
 void* intArrayRead(
-	const fiftyoneDegreesCollectionFile *file,
-	uint32_t offset,
-	fiftyoneDegreesData *data,
-	fiftyoneDegreesException *exception) {
+	const fiftyoneDegreesCollectionFile * const file,
+	const fiftyoneDegreesCollectionKey * const key,
+	fiftyoneDegreesData * const data,
+	fiftyoneDegreesException * const exception) {
 	uint32_t length;
 	return fiftyoneDegreesCollectionReadFileVariable(
 		file,
 		data,
-		offset,
+		key,
 		&length,
-		sizeof(int32_t),
-		getIntArraySize,
 		exception);
 }
 
@@ -615,7 +643,7 @@ TEST_F(CollectionTestFileVariableLimits, OnlyElementHeader) {
 		5, 5, 2435, 432, 43, 45,
 		2, 32, 54 };
 	// This configuration ensures that not everything is loaded into memory.
-	fiftyoneDegreesCollectionConfig config = { 5, 5, 1 };
+	fiftyoneDegreesCollectionConfig config = { true, 5, 1 };
 
 	// Now set up the binary file containing the data structure.
 	size = sizeof(values);
@@ -661,25 +689,24 @@ TEST_F(CollectionTestFileVariableLimits, OnlyElementHeader) {
 			intArrayRead);
 	ASSERT_NE(collection, nullptr) <<
 		L"The collection was not created correctly";
-	if (fiftyoneDegreesCollectionGetIsMemoryOnly() == false) {
-		ASSERT_NE(collection->next, nullptr) <<
-			L"The collection was all loaded into memory. This should be a "
-			"partial collection";
-	}
-	else {
-		ASSERT_EQ(collection->next, nullptr) <<
-			L"The collection was not all loaded into memory. This should be a "
-			"memory collection as MEMORY_ONLY was defined";
-	}
 
 	// Fetch values from the collection.
 	fiftyoneDegreesCollectionItem item;
 	fiftyoneDegreesDataReset(&item.data);
 	uint32_t *value;
+	const fiftyoneDegreesCollectionKeyType keyType {
+		FIFTYONE_DEGREES_COLLECTION_ENTRY_TYPE_CUSTOM,
+		sizeof(int32_t),
+		getIntArraySize,
+	};
 	for (uint32_t i = 0; i < count; i++) {
+		const fiftyoneDegreesCollectionKey key {
+			offsets[i],
+			&keyType,
+		};
 		value = (uint32_t*)collection->get(
 			collection,
-			offsets[i],
+			&key,
 			&item,
 			exception);
 		FIFTYONE_DEGREES_EXCEPTION_THROW
@@ -720,27 +747,27 @@ TEST_F(CollectionTest##s##w##e##o, BinarySearchNotFound) { binarySearch_notFound
 /* Configs to test. */
 #define COLLECTION_TEST_THREADS 4
 fiftyoneDegreesCollectionConfig MaxMemConf = {
-	INT_MAX, 0, COLLECTION_TEST_THREADS
+	true, 0, COLLECTION_TEST_THREADS
 };
 fiftyoneDegreesCollectionConfig ExactMemConf = {
-	(uint32_t)TEST_STRINGS_COUNT, 0, COLLECTION_TEST_THREADS 
+	true, 0, COLLECTION_TEST_THREADS
 };
 fiftyoneDegreesCollectionConfig CacheConf = {
-	0, (uint32_t)TEST_STRINGS_COUNT, COLLECTION_TEST_THREADS
+	false, (uint32_t)TEST_STRINGS_COUNT, COLLECTION_TEST_THREADS
 };
 fiftyoneDegreesCollectionConfig StreamConf = {
-	0, 0, COLLECTION_TEST_THREADS
+	false, 0, COLLECTION_TEST_THREADS
 };
 fiftyoneDegreesCollectionConfig MixedCacheConf = {
-	((uint32_t)TEST_STRINGS_COUNT / 2),
+	true,
 	((uint32_t)TEST_STRINGS_COUNT / 2) / 2,
 	COLLECTION_TEST_THREADS
 };
 fiftyoneDegreesCollectionConfig MixedStreamConf = {
-	((uint32_t)TEST_STRINGS_COUNT / 2), 0, COLLECTION_TEST_THREADS
+	true, 0, COLLECTION_TEST_THREADS
 };
 fiftyoneDegreesCollectionConfig MixedStreamCacheConf = {
-	((uint32_t)TEST_STRINGS_COUNT / 3),
+	true,
 	((uint32_t)TEST_STRINGS_COUNT / 3),
 	COLLECTION_TEST_THREADS
 };

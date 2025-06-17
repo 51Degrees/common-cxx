@@ -24,6 +24,7 @@
 #include "../string.h"
 #include "Base.hpp"
 #include "TestUtils_Pointers.hpp"
+#include "../collectionKeyTypes.h"
 
 static void releaseFilePool(FilePool * const ptr) {
     if (ptr) {
@@ -37,12 +38,25 @@ using FileHandlePtr = std::unique_ptr<FileHandle, decltype(&FileHandleRelease)>;
 typedef uint32_t Offset;
 typedef std::vector<byte> ByteBuffer;
 
+static constexpr uint16_t requiredCollectionConcurrency = 11;
+
+struct FileCollectionBox {
+    fiftyoneDegreesCollectionConfig config = {
+        false, // loaded
+        0, // capacity
+        requiredCollectionConcurrency, // concurrency
+    };
+    FileHandlePtr handle { nullptr, FileHandleRelease };
+    CollectionPtr ptr { nullptr, freeCollection };
+};
+
 class StoredBinaryValues : public Base {
 public:
     void SetUp() override;
     void TearDown() override;
 
     ByteBuffer rawStringsBuffer;
+    byte *dataStart = nullptr;
     struct {
         Offset string1;
         Offset string2;
@@ -56,19 +70,23 @@ public:
     } offsets = {};
 
     struct FileProps {
-        fiftyoneDegreesCollectionConfig config = {
-            0, // loaded
-            0, // capacity
-            11, // concurrency
-        };
+        const uint16_t totalConcurrency = 2 * requiredCollectionConcurrency;
         FilePoolPtr pool { nullptr, releaseFilePool };
-        FileHandlePtr handle { nullptr, FileHandleRelease };
+        CollectionHeader header = {};
     } file = {};
 
     CollectionHeader header = {};
     struct {
         CollectionPtr memory { nullptr, freeCollection };
-        CollectionPtr file { nullptr, freeCollection };
+        FileCollectionBox fileNoCache = {{ false, 0, requiredCollectionConcurrency }};
+        FileCollectionBox fileCache = {
+            {
+                false,
+                requiredCollectionConcurrency * requiredCollectionConcurrency,
+                requiredCollectionConcurrency,
+            }};
+        FileCollectionBox fileLoadedNoCache = {{ true, 0, 0 }};
+        FileCollectionBox fileLoadedCache = {{ true, requiredCollectionConcurrency, 0 }};
     } collection;
 };
 
@@ -117,13 +135,14 @@ static constexpr int intValue_rawValue = 1377860197;
 
 static CollectionPtr buildMemoryCollection(
     ByteBuffer &rawStringsBuffer,
+    const uint16_t fileHeaderSize,
     const CollectionHeader &header) {
     byte * const ptr = rawStringsBuffer.data();
-    MemoryReader reader = {
+    fiftyoneDegreesMemoryReader reader = {
         ptr, // startByte
-        ptr, // current
-        ptr + rawStringsBuffer.size(), // lastByte
-        (FileOffset)rawStringsBuffer.size(), // length
+        ptr + fileHeaderSize, // current
+        ptr + fileHeaderSize + header.length, // lastByte
+        (FileOffset)header.length, // length
     };
     fiftyoneDegreesCollection * const collection = CollectionCreateFromMemory(
         &reader,
@@ -134,43 +153,55 @@ static CollectionPtr buildMemoryCollection(
 
 static constexpr char fileName[] = "StoredBinaryValueTests_Data.hex";
 
-static CollectionPtr buildFileCollection(
-    StoredBinaryValues::FileProps &fileProps,
-    const CollectionHeader &header) {
+static void prepareFileProps(StoredBinaryValues::FileProps &fileProps) {
     EXCEPTION_CREATE;
 
     auto const pool = new FilePool();
     FilePoolInit(
         pool,
         fileName,
-        fileProps.config.concurrency,
+        fileProps.totalConcurrency,
         exception);
     EXCEPTION_THROW;
     fileProps.pool = FilePoolPtr(pool, releaseFilePool);
+}
 
-    fileProps.handle = FileHandlePtr(
-        FileHandleGet(pool, exception),
+static void buildFileCollection(
+    StoredBinaryValues::FileProps &fileProps,
+    const CollectionHeader &header,
+    FileCollectionBox &outBox) {
+    EXCEPTION_CREATE;
+
+    outBox.handle = FileHandlePtr(
+        FileHandleGet(fileProps.pool.get(), exception),
         FileHandleRelease);
     EXCEPTION_THROW;
 
+    fileProps.header = header;
+    // fileProps.header = CollectionHeaderFromFile(
+    //     outBox.handle->file,
+    //     1,
+    //     true);
+
     fiftyoneDegreesCollection * const collection = CollectionCreateFromFile(
-        fileProps.handle->file,
+        outBox.handle->file,
         fileProps.pool.get(),
-        &fileProps.config,
-        header,
+        &outBox.config,
+        fileProps.header,
         StoredBinaryValueRead);
-    CollectionPtr result(collection, freeCollection);
-    return result;
+    outBox.ptr = {collection, freeCollection};
 }
 
 void StoredBinaryValues::SetUp() {
     // add some junk into start to emulate file header
+    const size_t fileHeaderSize = sizeof(uint32_t);
+    rawStringsBuffer.assign(fileHeaderSize, 0);
     rawStringsBuffer.push_back(42);
     rawStringsBuffer.push_back(29);
     rawStringsBuffer.push_back(13);
     // add contents
 #   define add_value_to_buffer(x) \
-    offsets.x = (Offset)rawStringsBuffer.size(); \
+    offsets.x = (Offset)rawStringsBuffer.size() - fileHeaderSize; \
     for (size_t i = 0; i < sizeof(x##_rawValueBytes); i++) { \
         rawStringsBuffer.push_back(x##_rawValueBytes[i]); \
     }
@@ -185,16 +216,24 @@ void StoredBinaryValues::SetUp() {
     add_value_to_buffer(byteValue)
 #   undef add_value_to_buffer
 
+    header = {
+        fileHeaderSize, // startPosition
+        (uint32_t)(rawStringsBuffer.size() - fileHeaderSize), // length
+        (uint32_t)(rawStringsBuffer.size() - fileHeaderSize), // count
+    };
+    for (size_t i = 0; i < fileHeaderSize; i++) {
+        rawStringsBuffer[i] = ((const byte*)&header.length)[i];
+    }
+
+    dataStart = rawStringsBuffer.data() + fileHeaderSize;
     FileWrite(fileName, rawStringsBuffer.data(), rawStringsBuffer.size());
 
-    header = {
-        0, // startPosition
-        (uint32_t)rawStringsBuffer.size(), // length
-        (uint32_t)rawStringsBuffer.size(), // count
-    };
-
-    collection.memory = buildMemoryCollection(rawStringsBuffer, header);
-    collection.file = buildFileCollection(file, header);
+    collection.memory = buildMemoryCollection(rawStringsBuffer, fileHeaderSize, header);
+    prepareFileProps(file);
+    buildFileCollection(file, header, collection.fileNoCache);
+    buildFileCollection(file, header, collection.fileCache);
+    buildFileCollection(file, header, collection.fileLoadedNoCache);
+    buildFileCollection(file, header, collection.fileLoadedCache);
 }
 
 void StoredBinaryValues::TearDown() {
@@ -207,12 +246,16 @@ void StoredBinaryValues::TearDown() {
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_Direct_FromMemory) {
     EXCEPTION_CREATE;
     ItemBox item;
+    const fiftyoneDegreesCollectionKey key {
+        offsets.string1,
+        CollectionKeyType_String,
+    };
     auto * const value = (String *)collection.memory->get(
         collection.memory.get(),
-        offsets.string1,
+        &key,
         *item,
         exception);
-    ASSERT_EQ(rawStringsBuffer.data() + offsets.string1, (byte *)value);
+    ASSERT_EQ(dataStart + offsets.string1, (byte *)value);
     ASSERT_EQ(sizeof(string1_rawValueBytes) - 2, value->size);
     for (size_t i = 0; i < sizeof(string1_rawValueBytes) - 2; i++) {
         ASSERT_EQ(string1_rawValueBytes[i + 2], (&value->value)[i]);
@@ -222,13 +265,13 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_Direct_FromMemory) {
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_FromMemory) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
         collection.memory.get(),
         offsets.string1,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
         *item,
         exception);
-    ASSERT_EQ(rawStringsBuffer.data() + offsets.string1, (byte *)value);
+    ASSERT_EQ(dataStart + offsets.string1, (byte *)value);
     ASSERT_EQ(sizeof(string1_rawValueBytes) - 2, value->stringValue.size);
     for (size_t i = 0; i < sizeof(string1_rawValueBytes) - 2; i++) {
         ASSERT_EQ(string1_rawValueBytes[i + 2], (&value->stringValue.value)[i]);
@@ -238,13 +281,13 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_FromMemory) {
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String2_FromMemory) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
         collection.memory.get(),
         offsets.string2,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
         *item,
         exception);
-    ASSERT_EQ(rawStringsBuffer.data() + offsets.string2, (byte *)value);
+    ASSERT_EQ(dataStart + offsets.string2, (byte *)value);
     ASSERT_EQ(sizeof(string2_rawValueBytes) - 2, value->stringValue.size);
     for (size_t i = 0; i < sizeof(string2_rawValueBytes) - 2; i++) {
         ASSERT_EQ(string2_rawValueBytes[i + 2], (&value->stringValue.value)[i]);
@@ -254,13 +297,13 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String2_FromMemory) {
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv4_FromMemory) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
         collection.memory.get(),
         offsets.ipv4,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
         *item,
         exception);
-    ASSERT_EQ(rawStringsBuffer.data() + offsets.ipv4, (byte *)value);
+    ASSERT_EQ(dataStart + offsets.ipv4, (byte *)value);
     ASSERT_EQ(sizeof(ipv4_rawValueBytes) - 2, value->byteArrayValue.size);
     for (size_t i = 0; i < sizeof(ipv4_rawValueBytes) - 2; i++) {
         ASSERT_EQ(ipv4_rawValueBytes[i + 2], (&value->byteArrayValue.firstByte)[i]);
@@ -270,13 +313,13 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv4_FromMemory) {
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv6_FromMemory) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
         collection.memory.get(),
         offsets.ipv6,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
         *item,
         exception);
-    ASSERT_EQ(rawStringsBuffer.data() + offsets.ipv6, (byte *)value);
+    ASSERT_EQ(dataStart + offsets.ipv6, (byte *)value);
     ASSERT_EQ(sizeof(ipv6_rawValueBytes) - 2, value->byteArrayValue.size);
     for (size_t i = 0; i < sizeof(ipv6_rawValueBytes) - 2; i++) {
         ASSERT_EQ(ipv6_rawValueBytes[i + 2], (&value->byteArrayValue.firstByte)[i]);
@@ -286,13 +329,13 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv6_FromMemory) {
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_WKB_FromMemory) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
         collection.memory.get(),
         offsets.wkb,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
         *item,
         exception);
-    ASSERT_EQ(rawStringsBuffer.data() + offsets.wkb, (byte *)value);
+    ASSERT_EQ(dataStart + offsets.wkb, (byte *)value);
     ASSERT_EQ(sizeof(wkb_rawValueBytes) - 2, value->byteArrayValue.size);
     for (size_t i = 0; i < sizeof(wkb_rawValueBytes) - 2; i++) {
         ASSERT_EQ(wkb_rawValueBytes[i + 2], (&value->byteArrayValue.firstByte)[i]);
@@ -302,15 +345,15 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_WKB_FromMemory) {
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Azimuth_FromMemory) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
         collection.memory.get(),
         offsets.shortValue,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH,
         *item,
         exception);
-    ASSERT_EQ(rawStringsBuffer.data() + offsets.shortValue, (byte *)value);
+    ASSERT_EQ(dataStart + offsets.shortValue, (byte *)value);
     for (size_t i = 0; i < sizeof(shortValue_rawValueBytes); i++) {
-        ASSERT_EQ(shortValue_rawValueBytes[i], ((byte *)value)[i]);
+        ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(shortValue_rawValue, value->shortValue);
     ASSERT_EQ(shortValue_azimuth, StoredBinaryValueToDoubleOrDefault(
@@ -322,15 +365,15 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Azimuth_FromMemory) {
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromMemory) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
         collection.memory.get(),
         offsets.shortValue,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION,
         *item,
         exception);
-    ASSERT_EQ(rawStringsBuffer.data() + offsets.shortValue, (byte *)value);
+    ASSERT_EQ(dataStart + offsets.shortValue, (byte *)value);
     for (size_t i = 0; i < sizeof(shortValue_rawValueBytes); i++) {
-        ASSERT_EQ(shortValue_rawValueBytes[i], ((byte *)value)[i]);
+        ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(shortValue_rawValue, value->shortValue);
     ASSERT_EQ(shortValue_declination, StoredBinaryValueToDoubleOrDefault(
@@ -342,55 +385,55 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromMemory) {
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Float_FromMemory) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
         collection.memory.get(),
         offsets.floatValue,
         FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_PRECISION_FLOAT,
         *item,
         exception);
-    ASSERT_EQ(rawStringsBuffer.data() + offsets.floatValue, (byte *)value);
+    ASSERT_EQ(dataStart + offsets.floatValue, (byte *)value);
     for (size_t i = 0; i < sizeof(floatValue_rawValueBytes); i++) {
-        ASSERT_EQ(floatValue_rawValueBytes[i], ((byte *)value)[i]);
+        ASSERT_EQ(floatValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(floatValue_rawValue, FLOAT_TO_NATIVE(value->floatValue));
-}
-
-TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Byte_FromMemory) {
-    EXCEPTION_CREATE;
-    ItemBox item;
-    StoredBinaryValue* const value = StoredBinaryValueGet(
-        collection.memory.get(),
-        offsets.byteValue,
-        FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_BYTE,
-        *item,
-        exception);
-    ASSERT_EQ(rawStringsBuffer.data() + offsets.byteValue, (byte*)value);
-    for (size_t i = 0; i < sizeof(byteValue_rawValueBytes); i++) {
-        ASSERT_EQ(byteValue_rawValueBytes[i], ((byte*)value)[i]);
-    }
-    ASSERT_EQ(byteValue_rawValue, value->byteValue);
 }
 
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Integer_FromMemory) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
         collection.memory.get(),
         offsets.intValue,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER,
         *item,
         exception);
-    ASSERT_EQ(rawStringsBuffer.data() + offsets.intValue, (byte *)value);
+    ASSERT_EQ(dataStart + offsets.intValue, (byte *)value);
     for (size_t i = 0; i < sizeof(intValue_rawValueBytes); i++) {
-        ASSERT_EQ(intValue_rawValueBytes[i], ((byte *)value)[i]);
+        ASSERT_EQ(intValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(intValue_rawValue, value->intValue);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Byte_FromMemory) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.memory.get(),
+        offsets.byteValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_BYTE,
+        *item,
+        exception);
+    ASSERT_EQ(dataStart + offsets.byteValue, (byte*)value);
+    for (size_t i = 0; i < sizeof(byteValue_rawValueBytes); i++) {
+        ASSERT_EQ(byteValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(byteValue_rawValue, value->byteValue);
 }
 
 TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Object_FromMemory) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
         collection.memory.get(),
         offsets.intValue,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_OBJECT,
@@ -399,23 +442,491 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Object_FromMemory) {
     // In-Memory collection does NOT care about property type
     // => no exception
     ASSERT_TRUE(EXCEPTION_OKAY);
-    ASSERT_EQ(rawStringsBuffer.data() + offsets.intValue, (byte *)value);
+    ASSERT_EQ(dataStart + offsets.intValue, (byte *)value);
     for (size_t i = 0; i < sizeof(intValue_rawValueBytes); i++) {
-        ASSERT_EQ(intValue_rawValueBytes[i], ((byte *)value)[i]);
+        ASSERT_EQ(intValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(intValue_rawValue, value->intValue);
 }
 
 
-// ============== StoredBinaryValueGet (from file) ==============
+// ============== StoredBinaryValueGet (from file loaded no cache) ==============
 
 
-TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_Direct_FromFile) {
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_Direct_FromFileLoadedNoCache) {
     EXCEPTION_CREATE;
     ItemBox item;
-    auto * const value = (String *)collection.file->get(
-        collection.file.get(),
+    const fiftyoneDegreesCollectionKey key {
         offsets.string1,
+        CollectionKeyType_String,
+    };
+    auto * const value = (String *)collection.fileLoadedNoCache.ptr->get(
+        collection.fileLoadedNoCache.ptr.get(),
+        &key,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(sizeof(string1_rawValueBytes) - 2, value->size);
+    for (size_t i = 0; i < sizeof(string1_rawValueBytes) - 2; i++) {
+        ASSERT_EQ(string1_rawValueBytes[i + 2], (&value->value)[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_FromFileLoadedNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedNoCache.ptr.get(),
+        offsets.string1,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(sizeof(string1_rawValueBytes) - 2, value->stringValue.size);
+    for (size_t i = 0; i < sizeof(string1_rawValueBytes) - 2; i++) {
+        ASSERT_EQ(string1_rawValueBytes[i + 2], (&value->stringValue.value)[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String2_FromFileLoadedNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedNoCache.ptr.get(),
+        offsets.string2,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(sizeof(string2_rawValueBytes) - 2, value->stringValue.size);
+    for (size_t i = 0; i < sizeof(string2_rawValueBytes) - 2; i++) {
+        ASSERT_EQ(string2_rawValueBytes[i + 2], (&value->stringValue.value)[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv4_FromFileLoadedNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedNoCache.ptr.get(),
+        offsets.ipv4,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(sizeof(ipv4_rawValueBytes) - 2, value->byteArrayValue.size);
+    for (size_t i = 0; i < sizeof(ipv4_rawValueBytes) - 2; i++) {
+        ASSERT_EQ(ipv4_rawValueBytes[i + 2], (&value->byteArrayValue.firstByte)[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv6_FromFileLoadedNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedNoCache.ptr.get(),
+        offsets.ipv6,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(sizeof(ipv6_rawValueBytes) - 2, value->byteArrayValue.size);
+    for (size_t i = 0; i < sizeof(ipv6_rawValueBytes) - 2; i++) {
+        ASSERT_EQ(ipv6_rawValueBytes[i + 2], (&value->byteArrayValue.firstByte)[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_WKB_FromFileLoadedNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedNoCache.ptr.get(),
+        offsets.wkb,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(sizeof(wkb_rawValueBytes) - 2, value->byteArrayValue.size);
+    for (size_t i = 0; i < sizeof(wkb_rawValueBytes) - 2; i++) {
+        ASSERT_EQ(wkb_rawValueBytes[i + 2], (&value->byteArrayValue.firstByte)[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Azimuth_FromFileLoadedNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedNoCache.ptr.get(),
+        offsets.shortValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    for (size_t i = 0; i < sizeof(shortValue_rawValueBytes); i++) {
+        ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(shortValue_rawValue, value->shortValue);
+    ASSERT_EQ(shortValue_azimuth, StoredBinaryValueToDoubleOrDefault(
+        value,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH,
+        0));
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromFileLoadedNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedNoCache.ptr.get(),
+        offsets.shortValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    for (size_t i = 0; i < sizeof(shortValue_rawValueBytes); i++) {
+        ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(shortValue_rawValue, value->shortValue);
+    ASSERT_EQ(shortValue_declination, StoredBinaryValueToDoubleOrDefault(
+        value,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION,
+        0));
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Float_FromFileLoadedNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedNoCache.ptr.get(),
+        offsets.floatValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_PRECISION_FLOAT,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    for (size_t i = 0; i < sizeof(floatValue_rawValueBytes); i++) {
+        ASSERT_EQ(floatValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(floatValue_rawValue, FLOAT_TO_NATIVE(value->floatValue));
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Integer_FromFileLoadedNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedNoCache.ptr.get(),
+        offsets.intValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    for (size_t i = 0; i < sizeof(intValue_rawValueBytes); i++) {
+        ASSERT_EQ(intValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(intValue_rawValue, value->intValue);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Byte_FromFileLoadedNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedNoCache.ptr.get(),
+        offsets.byteValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_BYTE,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    for (size_t i = 0; i < sizeof(byteValue_rawValueBytes); i++) {
+        ASSERT_EQ(byteValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(byteValue_rawValue, value->byteValue);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Object_FromFileLoadedNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedNoCache.ptr.get(),
+        offsets.intValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_OBJECT,
+        *item,
+        exception);
+    // In-Memory collection does NOT care about property type
+    // => no exception
+    ASSERT_TRUE(EXCEPTION_OKAY);
+    ASSERT_EQ(0, item->data.allocated);
+    for (size_t i = 0; i < sizeof(intValue_rawValueBytes); i++) {
+        ASSERT_EQ(intValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(intValue_rawValue, value->intValue);
+}
+
+
+// ============== StoredBinaryValueGet (from file loaded cache) ==============
+
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_Direct_FromFileLoadedCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const fiftyoneDegreesCollectionKey key {
+        offsets.string1,
+        CollectionKeyType_String,
+    };
+    auto * const value = (String *)collection.fileLoadedCache.ptr->get(
+        collection.fileLoadedCache.ptr.get(),
+        &key,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(sizeof(string1_rawValueBytes) - 2, value->size);
+    for (size_t i = 0; i < sizeof(string1_rawValueBytes) - 2; i++) {
+        ASSERT_EQ(string1_rawValueBytes[i + 2], (&value->value)[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_FromFileLoadedCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedCache.ptr.get(),
+        offsets.string1,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(sizeof(string1_rawValueBytes) - 2, value->stringValue.size);
+    for (size_t i = 0; i < sizeof(string1_rawValueBytes) - 2; i++) {
+        ASSERT_EQ(string1_rawValueBytes[i + 2], (&value->stringValue.value)[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String2_FromFileLoadedCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedCache.ptr.get(),
+        offsets.string2,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(sizeof(string2_rawValueBytes) - 2, value->stringValue.size);
+    for (size_t i = 0; i < sizeof(string2_rawValueBytes) - 2; i++) {
+        ASSERT_EQ(string2_rawValueBytes[i + 2], (&value->stringValue.value)[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv4_FromFileLoadedCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedCache.ptr.get(),
+        offsets.ipv4,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(sizeof(ipv4_rawValueBytes) - 2, value->byteArrayValue.size);
+    for (size_t i = 0; i < sizeof(ipv4_rawValueBytes) - 2; i++) {
+        ASSERT_EQ(ipv4_rawValueBytes[i + 2], (&value->byteArrayValue.firstByte)[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv6_FromFileLoadedCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedCache.ptr.get(),
+        offsets.ipv6,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(sizeof(ipv6_rawValueBytes) - 2, value->byteArrayValue.size);
+    for (size_t i = 0; i < sizeof(ipv6_rawValueBytes) - 2; i++) {
+        ASSERT_EQ(ipv6_rawValueBytes[i + 2], (&value->byteArrayValue.firstByte)[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_WKB_FromFileLoadedCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedCache.ptr.get(),
+        offsets.wkb,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    ASSERT_EQ(sizeof(wkb_rawValueBytes) - 2, value->byteArrayValue.size);
+    for (size_t i = 0; i < sizeof(wkb_rawValueBytes) - 2; i++) {
+        ASSERT_EQ(wkb_rawValueBytes[i + 2], (&value->byteArrayValue.firstByte)[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Azimuth_FromFileLoadedCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedCache.ptr.get(),
+        offsets.shortValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    for (size_t i = 0; i < sizeof(shortValue_rawValueBytes); i++) {
+        ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(shortValue_rawValue, value->shortValue);
+    ASSERT_EQ(shortValue_azimuth, StoredBinaryValueToDoubleOrDefault(
+        value,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH,
+        0));
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromFileLoadedCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedCache.ptr.get(),
+        offsets.shortValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    for (size_t i = 0; i < sizeof(shortValue_rawValueBytes); i++) {
+        ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(shortValue_rawValue, value->shortValue);
+    ASSERT_EQ(shortValue_declination, StoredBinaryValueToDoubleOrDefault(
+        value,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION,
+        0));
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Float_FromFileLoadedCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedCache.ptr.get(),
+        offsets.floatValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_PRECISION_FLOAT,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    for (size_t i = 0; i < sizeof(floatValue_rawValueBytes); i++) {
+        ASSERT_EQ(floatValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(floatValue_rawValue, FLOAT_TO_NATIVE(value->floatValue));
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Integer_FromFileLoadedCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedCache.ptr.get(),
+        offsets.intValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    for (size_t i = 0; i < sizeof(intValue_rawValueBytes); i++) {
+        ASSERT_EQ(intValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(intValue_rawValue, value->intValue);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Byte_FromFileLoadedCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedCache.ptr.get(),
+        offsets.byteValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_BYTE,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(0, item->data.allocated);
+    for (size_t i = 0; i < sizeof(byteValue_rawValueBytes); i++) {
+        ASSERT_EQ(byteValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(byteValue_rawValue, value->byteValue);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Object_FromFileLoadedCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedCache.ptr.get(),
+        offsets.intValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_OBJECT,
+        *item,
+        exception);
+    // In-Memory collection does NOT care about property type
+    // => no exception
+    ASSERT_TRUE(EXCEPTION_OKAY);
+    ASSERT_EQ(0, item->data.allocated);
+    for (size_t i = 0; i < sizeof(intValue_rawValueBytes); i++) {
+        ASSERT_EQ(intValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(intValue_rawValue, value->intValue);
+}
+
+
+// ============== StoredBinaryValueGet (from file cache) ==============
+
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_Direct_FromFileCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const fiftyoneDegreesCollectionKey key {
+        offsets.string1,
+        CollectionKeyType_String,
+    };
+    auto * const value = (String *)collection.fileCache.ptr->get(
+        collection.fileCache.ptr.get(),
+        &key,
         *item,
         exception);
     EXCEPTION_THROW;
@@ -427,11 +938,11 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_Direct_FromFile) {
     }
 }
 
-TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_FromFile) {
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_FromFileCache) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
-        collection.file.get(),
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileCache.ptr.get(),
         offsets.string1,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
         *item,
@@ -445,11 +956,11 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_FromFile) {
     }
 }
 
-TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String2_FromFile) {
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String2_FromFileCache) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
-        collection.file.get(),
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileCache.ptr.get(),
         offsets.string2,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
         *item,
@@ -463,11 +974,11 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String2_FromFile) {
     }
 }
 
-TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv4_FromFile) {
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv4_FromFileCache) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
-        collection.file.get(),
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileCache.ptr.get(),
         offsets.ipv4,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
         *item,
@@ -481,11 +992,11 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv4_FromFile) {
     }
 }
 
-TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv6_FromFile) {
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv6_FromFileCache) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
-        collection.file.get(),
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileCache.ptr.get(),
         offsets.ipv6,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
         *item,
@@ -499,11 +1010,11 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv6_FromFile) {
     }
 }
 
-TEST_F(StoredBinaryValues, StoredBinaryValue_Get_WKB_FromFile) {
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_WKB_FromFileCache) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
-        collection.file.get(),
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileCache.ptr.get(),
         offsets.wkb,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
         *item,
@@ -517,11 +1028,11 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_WKB_FromFile) {
     }
 }
 
-TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Azimuth_FromFile) {
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Azimuth_FromFileCache) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
-        collection.file.get(),
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileCache.ptr.get(),
         offsets.shortValue,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH,
         *item,
@@ -530,7 +1041,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Azimuth_FromFile) {
     ASSERT_NE(nullptr, value);
     ASSERT_EQ(sizeof(shortValue_rawValueBytes), item->data.allocated);
     for (size_t i = 0; i < sizeof(shortValue_rawValueBytes); i++) {
-        ASSERT_EQ(shortValue_rawValueBytes[i], ((byte *)value)[i]);
+        ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(shortValue_rawValue, value->shortValue);
     ASSERT_EQ(shortValue_azimuth, StoredBinaryValueToDoubleOrDefault(
@@ -539,11 +1050,11 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Azimuth_FromFile) {
         0));
 }
 
-TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromFile) {
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromFileCache) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
-        collection.file.get(),
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileCache.ptr.get(),
         offsets.shortValue,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION,
         *item,
@@ -552,7 +1063,7 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromFile) {
     ASSERT_NE(nullptr, value);
     ASSERT_EQ(sizeof(shortValue_rawValueBytes), item->data.allocated);
     for (size_t i = 0; i < sizeof(shortValue_rawValueBytes); i++) {
-        ASSERT_EQ(shortValue_rawValueBytes[i], ((byte *)value)[i]);
+        ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(shortValue_rawValue, value->shortValue);
     ASSERT_EQ(shortValue_declination, StoredBinaryValueToDoubleOrDefault(
@@ -561,11 +1072,11 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromFile) {
         0));
 }
 
-TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Float_FromFile) {
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Float_FromFileCache) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
-        collection.file.get(),
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileCache.ptr.get(),
         offsets.floatValue,
         FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_PRECISION_FLOAT,
         *item,
@@ -574,34 +1085,16 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Float_FromFile) {
     ASSERT_NE(nullptr, value);
     ASSERT_EQ(sizeof(floatValue_rawValueBytes), item->data.allocated);
     for (size_t i = 0; i < sizeof(floatValue_rawValueBytes); i++) {
-        ASSERT_EQ(floatValue_rawValueBytes[i], ((byte *)value)[i]);
+        ASSERT_EQ(floatValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(floatValue_rawValue, FLOAT_TO_NATIVE(value->floatValue));
 }
 
-TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Byte_FromFile) {
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Integer_FromFileCache) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue* const value = StoredBinaryValueGet(
-        collection.file.get(),
-        offsets.byteValue,
-        FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_BYTE,
-        *item,
-        exception);
-    EXCEPTION_THROW;
-    ASSERT_NE(nullptr, value);
-    ASSERT_EQ(sizeof(byteValue_rawValueBytes), item->data.allocated);
-    for (size_t i = 0; i < sizeof(byteValue_rawValueBytes); i++) {
-        ASSERT_EQ(byteValue_rawValueBytes[i], ((byte*)value)[i]);
-    }
-    ASSERT_EQ(byteValue_rawValue, value->byteValue);
-}
-
-TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Integer_FromFile) {
-    EXCEPTION_CREATE;
-    ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
-        collection.file.get(),
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileCache.ptr.get(),
         offsets.intValue,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER,
         *item,
@@ -610,16 +1103,261 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Integer_FromFile) {
     ASSERT_NE(nullptr, value);
     ASSERT_EQ(sizeof(intValue_rawValueBytes), item->data.allocated);
     for (size_t i = 0; i < sizeof(intValue_rawValueBytes); i++) {
-        ASSERT_EQ(intValue_rawValueBytes[i], ((byte *)value)[i]);
+        ASSERT_EQ(intValue_rawValueBytes[i], ((const byte *)value)[i]);
     }
     ASSERT_EQ(intValue_rawValue, value->intValue);
 }
 
-TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Object_FromFile) {
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Byte_FromFileCache) {
     EXCEPTION_CREATE;
     ItemBox item;
-    StoredBinaryValue * const value = StoredBinaryValueGet(
-        collection.file.get(),
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileCache.ptr.get(),
+        offsets.byteValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_BYTE,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(sizeof(byteValue_rawValueBytes), item->data.allocated);
+    for (size_t i = 0; i < sizeof(byteValue_rawValueBytes); i++) {
+        ASSERT_EQ(byteValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(byteValue_rawValue, value->byteValue);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Object_FromFileCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileCache.ptr.get(),
+        offsets.intValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_OBJECT,
+        *item,
+        exception);
+    ASSERT_FALSE(EXCEPTION_OKAY);
+    ASSERT_EQ(UNSUPPORTED_STORED_VALUE_TYPE, exception->status);
+    ASSERT_FALSE(value);
+}
+
+
+// ============== StoredBinaryValueGet (from file no cache) ==============
+
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_Direct_FromFileNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const fiftyoneDegreesCollectionKey key {
+        offsets.string1,
+        CollectionKeyType_String,
+    };
+    auto * const value = (String *)collection.fileNoCache.ptr->get(
+        collection.fileNoCache.ptr.get(),
+        &key,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(sizeof(string1_rawValueBytes), item->data.allocated);
+    ASSERT_EQ(sizeof(string1_rawValueBytes) - 2, value->size);
+    for (size_t i = 0; i < sizeof(string1_rawValueBytes) - 2; i++) {
+        ASSERT_EQ(string1_rawValueBytes[i + 2], (&value->value)[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String1_FromFileNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileNoCache.ptr.get(),
+        offsets.string1,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(sizeof(string1_rawValueBytes), item->data.allocated);
+    ASSERT_EQ(sizeof(string1_rawValueBytes) - 2, value->stringValue.size);
+    for (size_t i = 0; i < sizeof(string1_rawValueBytes) - 2; i++) {
+        ASSERT_EQ(string1_rawValueBytes[i + 2], (&value->stringValue.value)[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_String2_FromFileNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileNoCache.ptr.get(),
+        offsets.string2,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(sizeof(string2_rawValueBytes), item->data.allocated);
+    ASSERT_EQ(sizeof(string2_rawValueBytes) - 2, value->stringValue.size);
+    for (size_t i = 0; i < sizeof(string2_rawValueBytes) - 2; i++) {
+        ASSERT_EQ(string2_rawValueBytes[i + 2], (&value->stringValue.value)[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv4_FromFileNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileNoCache.ptr.get(),
+        offsets.ipv4,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(sizeof(ipv4_rawValueBytes), item->data.allocated);
+    ASSERT_EQ(sizeof(ipv4_rawValueBytes) - 2, value->byteArrayValue.size);
+    for (size_t i = 0; i < sizeof(ipv4_rawValueBytes) - 2; i++) {
+        ASSERT_EQ(ipv4_rawValueBytes[i + 2], (&value->byteArrayValue.firstByte)[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_IPv6_FromFileNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileNoCache.ptr.get(),
+        offsets.ipv6,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(sizeof(ipv6_rawValueBytes), item->data.allocated);
+    ASSERT_EQ(sizeof(ipv6_rawValueBytes) - 2, value->byteArrayValue.size);
+    for (size_t i = 0; i < sizeof(ipv6_rawValueBytes) - 2; i++) {
+        ASSERT_EQ(ipv6_rawValueBytes[i + 2], (&value->byteArrayValue.firstByte)[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_WKB_FromFileNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileNoCache.ptr.get(),
+        offsets.wkb,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_IP_ADDRESS,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(sizeof(wkb_rawValueBytes), item->data.allocated);
+    ASSERT_EQ(sizeof(wkb_rawValueBytes) - 2, value->byteArrayValue.size);
+    for (size_t i = 0; i < sizeof(wkb_rawValueBytes) - 2; i++) {
+        ASSERT_EQ(wkb_rawValueBytes[i + 2], (&value->byteArrayValue.firstByte)[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Azimuth_FromFileNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileNoCache.ptr.get(),
+        offsets.shortValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(sizeof(shortValue_rawValueBytes), item->data.allocated);
+    for (size_t i = 0; i < sizeof(shortValue_rawValueBytes); i++) {
+        ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(shortValue_rawValue, value->shortValue);
+    ASSERT_EQ(shortValue_azimuth, StoredBinaryValueToDoubleOrDefault(
+        value,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_AZIMUTH,
+        0));
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Declination_FromFileNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileNoCache.ptr.get(),
+        offsets.shortValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(sizeof(shortValue_rawValueBytes), item->data.allocated);
+    for (size_t i = 0; i < sizeof(shortValue_rawValueBytes); i++) {
+        ASSERT_EQ(shortValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(shortValue_rawValue, value->shortValue);
+    ASSERT_EQ(shortValue_declination, StoredBinaryValueToDoubleOrDefault(
+        value,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_DECLINATION,
+        0));
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Float_FromFileNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileNoCache.ptr.get(),
+        offsets.floatValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_PRECISION_FLOAT,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(sizeof(floatValue_rawValueBytes), item->data.allocated);
+    for (size_t i = 0; i < sizeof(floatValue_rawValueBytes); i++) {
+        ASSERT_EQ(floatValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(floatValue_rawValue, FLOAT_TO_NATIVE(value->floatValue));
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Integer_FromFileNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileNoCache.ptr.get(),
+        offsets.intValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(sizeof(intValue_rawValueBytes), item->data.allocated);
+    for (size_t i = 0; i < sizeof(intValue_rawValueBytes); i++) {
+        ASSERT_EQ(intValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(intValue_rawValue, value->intValue);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Byte_FromFileNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileNoCache.ptr.get(),
+        offsets.byteValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_BYTE,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(sizeof(byteValue_rawValueBytes), item->data.allocated);
+    for (size_t i = 0; i < sizeof(byteValue_rawValueBytes); i++) {
+        ASSERT_EQ(byteValue_rawValueBytes[i], ((const byte *)value)[i]);
+    }
+    ASSERT_EQ(byteValue_rawValue, value->byteValue);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_Object_FromFileNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileNoCache.ptr.get(),
         offsets.intValue,
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_OBJECT,
         *item,
@@ -685,6 +1423,24 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_ToInt_String_3_95) {
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
         -1);
     EXPECT_EQ(3, result);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_ToInt_Byte_0) {
+    const byte rawByte = 0;
+    const int result = StoredBinaryValueToIntOrDefault(
+        (const StoredBinaryValue *)&rawByte,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_BYTE,
+        -1);
+    EXPECT_EQ(0, result);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_ToInt_Byte_7) {
+    const byte rawByte = 7;
+    const int result = StoredBinaryValueToIntOrDefault(
+        (const StoredBinaryValue *)&rawByte,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_BYTE,
+        -1);
+    EXPECT_EQ(7, result);
 }
 
 TEST_F(StoredBinaryValues, StoredBinaryValue_ToInt_Integer_0) {
@@ -847,6 +1603,24 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_ToDouble_String_3_95) {
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING,
         -1);
     EXPECT_EQ(3.95, result);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_ToDouble_Byte_0) {
+    const byte rawByte = 0;
+    const double result = StoredBinaryValueToDoubleOrDefault(
+        (const StoredBinaryValue *)&rawByte,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_BYTE,
+        -1);
+    EXPECT_EQ(0, result);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_ToDouble_Byte_7) {
+    const byte rawByte = 7;
+    const double result = StoredBinaryValueToDoubleOrDefault(
+        (const StoredBinaryValue *)&rawByte,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_BYTE,
+        -1);
+    EXPECT_EQ(7, result);
 }
 
 TEST_F(StoredBinaryValues, StoredBinaryValue_ToDouble_Integer_0) {
@@ -1063,6 +1837,24 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_ToBool_Integer_0) {
         FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_INTEGER,
         false);
     EXPECT_EQ(false, result);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_ToBool_Byte_0) {
+    const byte rawByte = 0;
+    const byte result = StoredBinaryValueToBoolOrDefault(
+        (const StoredBinaryValue *)&rawByte,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_BYTE,
+        false);
+    EXPECT_EQ(false, result);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_ToBool_Byte_7) {
+    const byte rawByte = 7;
+    const byte result = StoredBinaryValueToBoolOrDefault(
+        (const StoredBinaryValue *)&rawByte,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_SINGLE_BYTE,
+        false);
+    EXPECT_EQ(true, result);
 }
 
 TEST_F(StoredBinaryValues, StoredBinaryValue_ToBool_Integer_Positive) {
