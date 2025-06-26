@@ -79,18 +79,30 @@ PropertyValueType fiftyoneDegreesPropertyGetStoredType(
 
 	Item item;
 	DataReset(&item.data);
-	CollectionBinarySearch(
-		propertyTypesCollection,
-		&item,
-		(CollectionIndexOrOffset){0},
-		(CollectionIndexOrOffset){CollectionGetCount(propertyTypesCollection)},
-		CollectionKeyType_PropertyTypeRecord,
-		(void*)&property->nameOffset,
-		comparePropertyTypeRecordByName,
-		exception);
-	if (EXCEPTION_OKAY) {
-		result = ((PropertyTypeRecord*)item.data.ptr)->storedValueType;
-		COLLECTION_RELEASE(propertyTypesCollection, &item);
+	bool found = false;
+	for (uint32_t i = 0, n = CollectionGetCount(propertyTypesCollection);
+		(!found) && (i < n);
+		i++) {
+
+		const CollectionKey propertyRecordKey = {
+			i,
+			CollectionKeyType_PropertyTypeRecord,
+		};
+		const PropertyTypeRecord * const record = (const PropertyTypeRecord*)(
+			propertyTypesCollection->get(
+				propertyTypesCollection,
+				&propertyRecordKey,
+				&item,
+				exception));
+		if (record != NULL && EXCEPTION_OKAY) {
+			if (record->nameOffset == property->nameOffset) {
+				result = record->storedValueType;
+				found = true;
+			}
+			COLLECTION_RELEASE(propertyTypesCollection, &item);
+		} else {
+			break;
+		}
 	}
 	return result;
 }
@@ -192,7 +204,7 @@ const fiftyoneDegreesProperty* fiftyoneDegreesPropertyGetByName(
 			i++,
 			CollectionKeyType_Property,
 		};
-		property = (Property*)properties->get(
+		property = (const Property*)properties->get(
 			properties, 
 			&propertyKey,
 			item, 
