@@ -21,6 +21,8 @@
  * ********************************************************************* */
 
 #include "collection.h"
+
+#include "collectionKeyTypes.h"
 #include "fiftyone.h"
 
 MAP_TYPE(Collection)
@@ -32,7 +34,7 @@ MAP_TYPE(CollectionConfig)
  * Used by methods which retrieve values from a collection to set an exception.
  */
 #ifndef FIFTYONE_DEGREES_EXCEPTIONS_DISABLED
-#define GET_EXCEPTION_SET(s) \
+#define GET_CLEAR_ITEM \
 if (item->data.allocated > 0) { \
 	Free(item->data.ptr); \
 } \
@@ -40,11 +42,14 @@ item->data.ptr = NULL; \
 item->data.used = 0; \
 item->data.allocated = 0; \
 item->handle = NULL; \
-item->collection = NULL; \
+item->collection = NULL;
+#define GET_EXCEPTION_SET(s) \
+GET_CLEAR_ITEM \
 if (exception->status == NOT_SET) { \
 	EXCEPTION_SET(s); \
 }
 #else
+#define GET_CLEAR_ITEM
 #define GET_EXCEPTION_SET(s)
 #endif
 
@@ -92,7 +97,7 @@ bool fiftyoneDegreesCollectionGetIsMemoryOnly() { return true; }
  * The data is reset so that further item operations
  * no longer access collection-controlled memory.
  */
-static void releaseNothing(Item *item) {
+static void releaseMemory(Item *item) {
 	assert(item != NULL);
 	DataReset(&item->data);
 }
@@ -150,10 +155,6 @@ static void freeCollection(Collection *collection) {
 static void freeMemoryCollection(Collection *collection) {
 	CollectionMemory *memory = (CollectionMemory*)collection->state;
 
-	if (collection->next != NULL) {
-		collection->next->freeCollection(collection->next);
-	}
-
 	if (memory->memoryToFree != NULL) {
 		Free(memory->memoryToFree);
 	}
@@ -189,13 +190,13 @@ static void freeCacheCollection(Collection *collection) {
 #pragma warning (disable: 4100) 
 #endif
 static void* getMemoryVariable(
-	Collection *collection,
-	uint32_t offset,
+	const Collection *collection,
+	const CollectionKey * const key,
 	Item *item,
 	Exception *exception) {
 	CollectionMemory *memory = (CollectionMemory*)collection->state;
-	if (offset < collection->size) {
-		item->data.ptr = memory->firstByte + offset;
+	if (key->indexOrOffset.offset < collection->size) {
+		item->data.ptr = memory->firstByte + key->indexOrOffset.offset;
 		assert(item->data.ptr < memory->lastByte);
 		item->collection = collection;
 	}
@@ -206,13 +207,13 @@ static void* getMemoryVariable(
 }
 
 static void* getMemoryFixed(
-	Collection *collection,
-	uint32_t index,
+	const Collection *collection,
+	const CollectionKey * const key,
 	Item *item,
 	Exception *exception) {
 	CollectionMemory *memory = (CollectionMemory*)collection->state;
-	if (index < collection->count) {
-		item->data.ptr = memory->firstByte + ((uint64_t)index * collection->elementSize);
+	if (key->indexOrOffset.index < collection->count) {
+		item->data.ptr = memory->firstByte + ((uint64_t)key->indexOrOffset.index * collection->elementSize);
 		assert(item->data.ptr < memory->lastByte);
 		item->collection = collection;
 	}
@@ -228,55 +229,9 @@ static void* getMemoryFixed(
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
-static void* getPartialVariable(
-	Collection *collection,
-	uint32_t offset,
-	Item *item,
-	Exception *exception) {
-	CollectionMemory *memory = (CollectionMemory*)collection->state;
-	if (offset < collection->size) {
-		item->data.ptr = memory->firstByte + offset;
-		assert(item->data.ptr < memory->lastByte);
-		item->data.allocated = 0;
-		item->data.used = 0;
-		item->handle = NULL;
-		item->collection = collection;
-	}
-	else if (collection->next != NULL) {
-		collection->next->get(collection->next, offset, item, exception);
-	}
-	else {
-		GET_EXCEPTION_SET(COLLECTION_OFFSET_OUT_OF_RANGE);
-	}
-	return item->data.ptr;
-}
-
-static void* getPartialFixed(
-	Collection *collection,
-	uint32_t index,
-	Item *item,
-	Exception *exception) {
-	CollectionMemory *memory = (CollectionMemory*)collection->state;
-	if (index < collection->count) {
-		item->data.ptr = memory->firstByte + ((uint64_t)index * collection->elementSize);
-		assert(item->data.ptr < memory->lastByte);
-		item->data.allocated = 0;
-		item->data.used = collection->elementSize;
-		item->handle = NULL;
-		item->collection = collection;
-	}
-	else if (collection->next != NULL) {
-		collection->next->get(collection->next, index, item, exception);
-	}
-	else {
-		GET_EXCEPTION_SET(COLLECTION_INDEX_OUT_OF_RANGE);
-	}
-	return item->data.ptr;
-}
-
 static void* getFile(
-	Collection *collection,
-	uint32_t indexOrOffset,
+	const Collection *collection,
+	const fiftyoneDegreesCollectionKey * const key,
 	Item *item,
 	Exception *exception) {
 	CollectionFile *file = (CollectionFile*)collection->state;
@@ -284,7 +239,7 @@ static void* getFile(
 
 	// Set the item's handle to the pointer at the start of the data item's
 	// data structure following the read operation.
-	item->handle = file->read(file, indexOrOffset, &item->data, exception);
+	item->handle = file->read(file, key, &item->data, exception);
 
 	// If the read operation returned a pointer to the item's data then set
 	// the collection for the item to the collection used so that it is
@@ -294,6 +249,8 @@ static void* getFile(
 	if (EXCEPTION_OKAY && item->handle != NULL) {
 		item->collection = collection;
 		ptr = item->data.ptr;
+	} else {
+		GET_CLEAR_ITEM;
 	}
 
 	return ptr;
@@ -311,8 +268,8 @@ static void* getFile(
  * @return a pointer to the data retrieved, or NULL if no data retrieved.
  */
 static void* getFromCache(
-	Collection *collection,
-	uint32_t key,
+	const Collection *collection,
+	const fiftyoneDegreesCollectionKey * const key,
 	Item *item,
 	Exception *exception) {
 	void *ptr = NULL;
@@ -323,7 +280,7 @@ static void* getFromCache(
 	// Get the node from the cache or the loader. This method doesn't need
 	// to know which.
 	CollectionCache *cache = (CollectionCache*)collection->state;
-	CacheNode *node = CacheGet(cache->cache, &key, exception);
+	CacheNode *node = CacheGet(cache->cache, key, exception);
 	
 	if (EXCEPTION_OKAY && node != NULL) {
 
@@ -370,7 +327,7 @@ static void loaderCache(
 	DataReset(&item.data);
 	if (collection->get(
 		collection,
-		*(uint32_t*)key,
+		(const CollectionKey *)key,
 		&item,
 		exception) != NULL &&
 		EXCEPTION_OKAY) {
@@ -398,103 +355,15 @@ static void loaderCache(
 
 #endif
 
-static void iterateCollection(
-	Collection *collection,
-	void *state,
-	CollectionIterateMethod callback,
-	Exception *exception) {
-	Item item;
-	uint32_t nextIndexOrOffset = 0;
-	DataReset(&item.data);
-	while (nextIndexOrOffset < collection->size &&
-		collection->get(
-			collection,
-			nextIndexOrOffset,
-			&item,
-			exception) != NULL &&
-		EXCEPTION_OKAY &&
-		// There is valid data for this iteration. Call the callback method.
-		callback(state, nextIndexOrOffset, &item.data)) {
-
-		// Set the next index or offset.
-		if (collection->elementSize != 0) {
-			nextIndexOrOffset++;
-		}
-		else {
-			nextIndexOrOffset += item.data.used;
-		}
-
-		// Release the item just retrieved.
-		COLLECTION_RELEASE(collection, &item);
-	}
-
-	// Release the final item that wasn't released in the while loop.
-	// This uses the actual method pointer instead of the macro and is the only
-	// place this is necessary. This is the case because even when MEMORY_ONLY
-	// is specified, a file collection can still exist internally while
-	// creating a memory collection, so the real method must be called here to
-	// ensure any allocated memory is freed.
-	if (collection->release != NULL) {
-		collection->release(&item);
-	}
-}
-
-#ifdef _MSC_VER
-#pragma warning (push)
-#pragma warning (disable: 4100) 
-#endif
-static bool callbackLoadedSize(
-	void *state, 
-	uint32_t key, 
-	void *data) {
-	sizeCounter *tracker = (sizeCounter*)state;
-	tracker->size += ((Data*)data)->used;
-	tracker->count++;
-	return tracker->count < tracker->max;
-}
-#ifdef _MSC_VER
-#pragma warning (default: 4100) 
-#pragma warning (pop)
-#endif
-
-static sizeCounter calculateLoadedSize(
-	Collection *collection,
-	const uint32_t count,
-	Exception *exception) {
-	sizeCounter counter;
-	counter.max = count;
-
-	// Can the size be worked out from the element size and the count?
-	if (collection->elementSize != 0) {
-		counter.count = count > collection->count ? collection->count : count;
-		counter.size = counter.count * collection->elementSize;
-	}
-
-	// Can the size be worked out from the collection itself?
-	else if (collection->size < count) {
-		counter.count = 0;
-		counter.size = collection->size;
-	}
-
-	// If none of the previous options can work then iterate the collection 
-	// reading all the values to work out it's size.
-	else {
-		counter.count = 0;
-		counter.size = 0;
-		iterateCollection(collection, &counter, callbackLoadedSize, exception);
-	}
-
-	return counter;
-}
-
 static Collection* createCollection(
 	size_t sizeOfState,
-	CollectionHeader *header) {
+	CollectionHeader *header,
+	const char * const typeName) {
 	Collection *collection = (Collection*)Malloc(sizeof(Collection));
 	if (collection != NULL) {
 		collection->state = Malloc(sizeOfState);
+		collection->typeName = typeName;
 		if (collection->state != NULL) {
-			collection->next = NULL;
 			collection->elementSize = header->count == 0 ?
 				0 : header->length / header->count;
 			collection->size = header->length;
@@ -540,7 +409,8 @@ static Collection* createFromFile(
 	// Allocate the memory for the collection and file implementation.
 	Collection *collection = createCollection(
 		sizeof(CollectionFile),
-		header);
+		header,
+		"CollectionFile");
 	CollectionFile *fileCollection = (CollectionFile*)collection->state;
 	fileCollection->collection = collection;
 	fileCollection->reader = reader;
@@ -562,33 +432,28 @@ static Collection* createFromFile(
 	return collection;
 }
 
-static Collection* createFromFilePartial(
+static Collection* createFromFileToMemory(
 	FILE *file,
 	FilePool *reader,
 	CollectionHeader *header,
-	int count,
 	CollectionFileRead read) {
 	EXCEPTION_CREATE;
-	sizeCounter counter;
 
 	// Create a file collection to populate the memory collection.
 	Collection *source = createFromFile(file, reader, header, read);
 
 	// Allocate the memory for the collection and implementation.
-	Collection *collection = createCollection(sizeof(CollectionFile), header);
+	Collection *collection = createCollection(
+		sizeof(CollectionFile),
+		header,
+		"CollectionMemory");
 	CollectionMemory *memory = (CollectionMemory*)collection->state;
 	memory->memoryToFree = NULL;
 	memory->collection = collection;
 
 	// Get the number of bytes that need to be loaded into memory.
-	counter = calculateLoadedSize(source, count, exception);
-	if (EXCEPTION_FAILED) {
-		freeMemoryCollection(collection);
-		source->freeCollection(source);
-		return NULL;
-	}
-	memory->collection->count = counter.count;
-	memory->collection->size = counter.size;
+	memory->collection->count = header->count;
+	memory->collection->size = header->length;
 
 	// Allocate sufficient memory for the data to be stored in.
 	memory->firstByte = (byte*)Malloc(memory->collection->size);
@@ -614,29 +479,24 @@ static Collection* createFromFilePartial(
 		return NULL;
 	}
 
-	// Move the file position to the byte after the collection.
-	if (FileSeek(file, source->size - memory->collection->size, SEEK_CUR) != 0) {
-		freeMemoryCollection(collection);
-		source->freeCollection(source);
-		return NULL;
-	}
-
 	// Set the last byte to enable checking for invalid requests.
 	memory->lastByte = memory->firstByte + memory->collection->size;
 
 	// Set the getter to a method that will check for another collection
 	// if the memory collection does not contain the entry.
 	if (memory->collection->elementSize != 0) {
-		collection->get = getPartialFixed;
+		collection->get = getMemoryFixed;
+		memory->collection->count = memory->collection->size /
+			memory->collection->elementSize;
 	}
 	else {
-		collection->get = getPartialVariable;
+		collection->get = getMemoryVariable;
 	}
 	if (fiftyoneDegreesCollectionGetIsMemoryOnly()) {
 		collection->release = NULL;
 	}
 	else {
-		collection->release = releasePartial;
+		collection->release = releaseMemory;
 	}
 	collection->freeCollection = freeMemoryCollection;
 
@@ -655,7 +515,10 @@ static Collection* createFromFileCached(
 	CollectionFileRead read) {
 
 	// Allocate the memory for the collection and implementation.
-	Collection *collection = createCollection(sizeof(CollectionFile), header);
+	Collection *collection = createCollection(
+		sizeof(CollectionFile),
+		header,
+		"CollectionCache");
 	CollectionCache *cache = (CollectionCache*)collection->state;
 	cache->cache = NULL;
 
@@ -774,7 +637,8 @@ fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromMemory(
 	// Allocate the memory for the collection and implementation.
 	Collection *collection = createCollection(
 		sizeof(CollectionMemory),
-		&header);
+		&header,
+		"CollectionMemory");
 	CollectionMemory *memory = (CollectionMemory*)collection->state;
 
 	// Configure the fields for the collection.
@@ -798,7 +662,7 @@ fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromMemory(
 		collection->release = NULL;
 	}
 	else {
-		collection->release = releaseNothing;
+		collection->release = releaseMemory;
 	}
 	collection->freeCollection = freeMemoryCollection;
 
@@ -855,18 +719,15 @@ fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromFile(
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
-	Collection **next = &result;
-
 	if (config->loaded > 0) {
 
 		// If the collection should be partially loaded into memory set the
 		// first collection to be a memory collection with the relevant number
 		// of entries loaded.
-		result = createFromFilePartial(
+		result = createFromFileToMemory(
 			file,
 			reader,
 			&header,
-			config->loaded,
 			read);
 
 		if (result == NULL) {
@@ -874,32 +735,14 @@ fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromFile(
 			return NULL;
 		
 		}
-		// Point to the next collection to create.
-		next = &result->next;
 	}
 
 	if (result == NULL || (
-		result->count == config->loaded &&
+		(((bool)result->count) == config->loaded) &&
 		(FileOffset)result->size < (FileTell(file) - (FileOffset)header.startPosition))) {
 
 		// Create the next collection if one is needed.
-		*next = createFromFileSecond(file, reader, config, header, read);
-
-		if (*next == NULL) {
-			// If the secondary collection could not be generated then free
-			// the primary one and return NULL to indicate that the collection
-			// could not be created.
-			if (result != NULL) {
-				 result->freeCollection(result);
-			}
-			result = NULL;
-		}
-	}
-	else {
-
-		// The partial collection supports all items so no need for secondary
-		// collections.
-		*next = NULL;
+		result = createFromFileSecond(file, reader, config, header, read);
 	}
 
 #else
@@ -983,35 +826,39 @@ fiftyoneDegreesFileHandle* fiftyoneDegreesCollectionReadFilePosition(
 
 void* fiftyoneDegreesCollectionReadFileFixed(
 	const fiftyoneDegreesCollectionFile *file,
-	uint32_t index,
+	const CollectionKey *key,
 	fiftyoneDegreesData *data,
 	fiftyoneDegreesException *exception) {
 	void *ptr = NULL;
 	FileHandle *handle = NULL;
-	uint32_t offset = index * file->collection->elementSize;
+	const uint32_t offset = key->indexOrOffset.index * file->collection->elementSize;
+	const uint32_t lengthToRead =
+		((key->keyType->initialBytesCount > file->collection->elementSize)
+			? key->keyType->initialBytesCount
+			: file->collection->elementSize);
 	
 	// Indicate that no data is being used at the start of the operation.
 	data->used = 0;
 
 	// If the index is outside the range of the collection then return NULL.
-	if (index < file->collection->count) {
+	if (key->indexOrOffset.index < file->collection->count) {
 
 		// Get the handle positioned at the start of the item to be read.
 		handle = CollectionReadFilePosition(file, offset, exception);
 		if (handle != NULL && EXCEPTION_OKAY) {
 
 			// Ensure sufficient memory is allocated for the item being read.
-			if (DataMalloc(data, file->collection->elementSize) != NULL) {
+			if (DataMalloc(data, lengthToRead) != NULL) {
 
 				// Read the record from file to the cache node's data field.
 				if (fread(
 					data->ptr,
-					file->collection->elementSize,
+					lengthToRead,
 					1,
 					handle->file) == 1) {
 
 					// Set the data structure to indicate a successful read.
-					data->used = file->collection->elementSize;
+					data->used = lengthToRead;
 					ptr = data->ptr;
 				}
 				else {
@@ -1046,7 +893,7 @@ static void* readFileVariable(
 	uint32_t offset,
 	void *initial,
 	size_t initialSize,
-	fiftyoneDegreesCollectionGetFileVariableSizeMethod getFinalSize,
+	fiftyoneDegreesCollectionGetVariableSizeMethod getFinalSize,
 	Exception *exception) {
 	uint32_t bytesNeeded, leftToRead;
 	void *ptr = NULL;
@@ -1059,7 +906,10 @@ static void* readFileVariable(
 		if ((!initialSize) || (fread(initial, initialSize, 1, handle->file) == 1)) {
 
 			// Calculate the number of bytes needed to store the item.
-			bytesNeeded = getFinalSize(initial);
+			bytesNeeded = getFinalSize ? getFinalSize(initial, exception) : (uint32_t)initialSize;
+			if (EXCEPTION_FAILED) {
+				return NULL;
+			}
 
 			// Ensure sufficient memory is allocated for the item being
 			// read and that the header is copied to the data buffer
@@ -1117,10 +967,8 @@ static void* readFileVariable(
 void* fiftyoneDegreesCollectionReadFileVariable(
 	const fiftyoneDegreesCollectionFile *fileCollection,
 	fiftyoneDegreesData *data,
-	uint32_t offset,
+	const fiftyoneDegreesCollectionKey * const key,
 	void *initial,
-	size_t initialSize,
-	fiftyoneDegreesCollectionGetFileVariableSizeMethod getFinalSize,
 	fiftyoneDegreesException *exception) {
 	void *ptr = NULL;
 
@@ -1132,7 +980,7 @@ void* fiftyoneDegreesCollectionReadFileVariable(
 	data->used = 0;
 
 	// Check that the item offset is within the range available.
-	if (offset < fileCollection->collection->size) {
+	if (key->indexOrOffset.offset < fileCollection->collection->size) {
 
 		// Get the handle for the file operation.
 		handle = FileHandleGet(fileCollection->reader, exception);
@@ -1145,10 +993,10 @@ void* fiftyoneDegreesCollectionReadFileVariable(
 				fileCollection,
 				handle,
 				data, 
-				offset,
-				initial, 
-				initialSize,
-				getFinalSize,
+				key->indexOrOffset.offset,
+				initial,
+				key->keyType->initialBytesCount,
+				key->keyType->getFinalSizeMethod,
 				exception);
 			FileHandleRelease(handle);
 		}
@@ -1166,13 +1014,21 @@ void* fiftyoneDegreesCollectionReadFileVariable(
 #endif
 
 int32_t fiftyoneDegreesCollectionGetInteger32(
-	fiftyoneDegreesCollection *collection,
-	uint32_t indexOrOffset,
-	fiftyoneDegreesException *exception) {
+	const Collection * const collection,
+	const uint32_t indexOrOffset,
+	Exception * const exception) {
 	Item item;
 	int32_t value = 0;
 	DataReset(&item.data);
-	if (collection->get(collection, indexOrOffset, &item, exception) != NULL) {
+	const CollectionKey itemKey = {
+		indexOrOffset,
+		CollectionKeyType_Integer,
+	};
+	if (collection->get(
+		collection,
+		&itemKey,
+		&item,
+		exception) != NULL) {
 		value = *((int32_t*)item.data.ptr);
 		COLLECTION_RELEASE(collection, &item);
 	}
@@ -1180,15 +1036,16 @@ int32_t fiftyoneDegreesCollectionGetInteger32(
 }
 
 long fiftyoneDegreesCollectionBinarySearch(
-	fiftyoneDegreesCollection *collection,
+	const fiftyoneDegreesCollection *collection,
 	fiftyoneDegreesCollectionItem *item,
-	uint32_t lowerIndex,
-	uint32_t upperIndex,
+	fiftyoneDegreesCollectionIndexOrOffset lowerKey,
+	fiftyoneDegreesCollectionIndexOrOffset upperKey,
+	const fiftyoneDegreesCollectionKeyType * const keyType,
 	void *state,
 	fiftyoneDegreesCollectionItemComparer comparer,
 	fiftyoneDegreesException *exception) {
-    uint32_t upper = upperIndex,
-		lower = lowerIndex,
+    uint32_t upper = upperKey.index,
+		lower = lowerKey.index,
 		middle;
 	int comparisonResult;
 	DataReset(&item->data);
@@ -1197,15 +1054,20 @@ long fiftyoneDegreesCollectionBinarySearch(
 		// Get the middle index for the next item to be compared.
 		middle = lower + (upper - lower) / 2;
 
+		const CollectionKey middleKey = {
+			middle,
+			keyType,
+		};
+
 		// Get the item from the collection checking for NULL or an error.
-		if (collection->get(collection, middle, item, exception) == NULL ||
+		if (collection->get(collection, &middleKey, item, exception) == NULL ||
 			EXCEPTION_OKAY == false) {
 			return 0;
 		}
 		
 		// Perform the binary search using the comparer provided with the item
 		// just returned.
-		comparisonResult = comparer(state, item, middle, exception);
+		comparisonResult = comparer(state, item, middleKey, exception);
 		if (EXCEPTION_OKAY == false) {
 			return 0;
 		}
@@ -1230,12 +1092,4 @@ long fiftyoneDegreesCollectionBinarySearch(
 
 	// The item could not be found and no error occurred.
 	return -1;
-}
-
-uint32_t fiftyoneDegreesCollectionGetCount(
-	fiftyoneDegreesCollection *collection) {
-	while (collection->next != NULL) {
-		collection = collection->next;
-	}
-	return collection->count;
 }

@@ -94,7 +94,7 @@ typedef union fiftyone_degrees_stored_binary_value_t {
  * Reads a binary value from the source file at the offset within the string
  * structure.
  * @param file collection to read from
- * @param offset of the string in the collection
+ * @param key of the binary value in the collection
  * @param data to store the new string in
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
@@ -104,7 +104,7 @@ typedef union fiftyone_degrees_stored_binary_value_t {
  */
 EXTERNAL void* fiftyoneDegreesStoredBinaryValueRead(
  const fiftyoneDegreesCollectionFile *file,
- uint32_t offset,
+ const fiftyoneDegreesCollectionKey *key,
  fiftyoneDegreesData *data,
  fiftyoneDegreesException *exception);
 
@@ -113,15 +113,15 @@ EXTERNAL void* fiftyoneDegreesStoredBinaryValueRead(
 /**
  * Gets the binary value at the required offset from the collection provided.
  * @param strings collection to get the string from
- * @param offset of the string in the collection
+ * @param offset of the binary value in the collection
  * @param storedValueType format of byte array representation
  * @param item to store the string in
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h.
  * @return a pointer to binary value or NULL if the offset is not valid
  */
-EXTERNAL fiftyoneDegreesStoredBinaryValue* fiftyoneDegreesStoredBinaryValueGet(
- fiftyoneDegreesCollection *strings,
+EXTERNAL const fiftyoneDegreesStoredBinaryValue* fiftyoneDegreesStoredBinaryValueGet(
+ const fiftyoneDegreesCollection *strings,
  uint32_t offset,
  fiftyoneDegreesPropertyValueType storedValueType,
  fiftyoneDegreesCollectionItem *item,

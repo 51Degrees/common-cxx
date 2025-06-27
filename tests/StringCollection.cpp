@@ -21,12 +21,14 @@
  * ********************************************************************* */
 #include "pch.h"
 #include "StringCollection.hpp"
+
+#include "../collectionKeyTypes.h"
 #include "../fiftyone.h"
 #include "../Exceptions.hpp"
 
 // Function used to return string names when the collections code 
 // requests them
-fiftyoneDegreesString* getStringValue(
+const fiftyoneDegreesString* getStringValue(
 	void *state,
 	uint32_t index,
 	fiftyoneDegreesCollectionItem *item) {
@@ -34,9 +36,13 @@ fiftyoneDegreesString* getStringValue(
 	fiftyoneDegreesString *value = nullptr;
 	stringCollectionState *strings = (stringCollectionState*)state;
 	if (index < strings->count) {
-		value = (String*)strings->collection->get(
-			strings->collection, 
+		const fiftyoneDegreesCollectionKey key {
 			strings->offsets[index],
+			CollectionKeyType_String,
+		};
+		value = (String*)strings->collection->get(
+			strings->collection,
+			&key,
 			item,
 			exception);
 		FIFTYONE_DEGREES_EXCEPTION_THROW
@@ -53,11 +59,15 @@ long getHeaderUniqueId(
 	fiftyoneDegreesCollectionItem *item) {
 	FIFTYONE_DEGREES_EXCEPTION_CREATE
 	long uniqueId = -1;
-	stringCollectionState *strings = (stringCollectionState*)state;
+	auto const strings = (const stringCollectionState*)state;
 	if (index >= 0 && index < strings->count) {
+		const fiftyoneDegreesCollectionKey key {
+			strings->offsets[index],
+			CollectionKeyType_String,
+		};
 		strings->collection->get(
 			strings->collection,
-			strings->offsets[index],
+			&key,
 			item,
 			exception);
 		FIFTYONE_DEGREES_EXCEPTION_THROW

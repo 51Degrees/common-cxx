@@ -26,38 +26,47 @@
 #include "fiftyone.h"
 #include <inttypes.h>
 
-static uint32_t getFinalStringSize(void *initial) {
+#include "collectionKeyTypes.h"
+
+uint32_t fiftyoneDegreesStringGetFinalSize(
+	const void *initial,
+    Exception * const exception) {
+#	ifdef _MSC_VER
+    UNREFERENCED_PARAMETER(exception);
+#	endif
 	return (uint32_t)(sizeof(int16_t) + (*(int16_t*)initial));
 }
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
 void* fiftyoneDegreesStringRead(
-	const fiftyoneDegreesCollectionFile *file,
-	uint32_t offset,
-	fiftyoneDegreesData *data,
-	fiftyoneDegreesException *exception) {
+	const fiftyoneDegreesCollectionFile * const file,
+	const CollectionKey * const key,
+	fiftyoneDegreesData * const data,
+	fiftyoneDegreesException * const exception) {
 	int16_t length;
 	return CollectionReadFileVariable(
 		file,
 		data,
-		offset,
+		key,
 		&length,
-		sizeof(int16_t),
-		getFinalStringSize,
 		exception);
 }
 
 #endif
 
-fiftyoneDegreesString* fiftyoneDegreesStringGet(
-	fiftyoneDegreesCollection *strings,
+const fiftyoneDegreesString* fiftyoneDegreesStringGet(
+	const fiftyoneDegreesCollection *strings,
 	uint32_t offset,
 	fiftyoneDegreesCollectionItem *item,
 	fiftyoneDegreesException *exception) {
+	const CollectionKey stringKey = {
+		offset,
+		CollectionKeyType_String,
+	};
 	return (String*)strings->get(
 		strings,
-		offset,
+		&stringKey,
 		item,
 		exception);
 }
