@@ -118,3 +118,8 @@ string ValueMetaData::getDescription() const {
 string ValueMetaData::getUrl() const {
 	return url;
 }
+
+std::vector<uint8_t> ValueMetaData::getUtf8ValueName() const {
+	const std::string& name = getName();
+	return std::vector<uint8_t>(name.begin(), name.end());
+}

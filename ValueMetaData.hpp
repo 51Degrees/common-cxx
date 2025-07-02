@@ -185,6 +185,12 @@ namespace FiftyoneDegrees {
 			string getUrl() const;
 
 			/**
+			 * Get the name of the value as a UTF-8 byte vector.
+			 * @return value name as UTF-8 bytes
+			 */
+			std::vector<uint8_t> getUtf8ValueName() const;
+
+			/**
 			 * @}
 			 */
 		private:

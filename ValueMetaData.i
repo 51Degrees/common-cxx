@@ -20,7 +20,11 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
+%include stdint.i
 %include std_string.i
+%include std_vector.i
+
+%template(UTF8StringSwig) std::vector<uint8_t>;
 
 %nodefaultctor ValueMetaDataKey;
 
@@ -51,4 +55,5 @@ public:
 	std::string getName();
 	std::string getDescription();
 	std::string getUrl();
+	std::vector<uint8_t> getUtf8ValueName();
 };
