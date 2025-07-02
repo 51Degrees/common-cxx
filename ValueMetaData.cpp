@@ -37,6 +37,14 @@ ValueMetaDataKey::ValueMetaDataKey(string propertyName, string valueName) {
 	this->valueName = valueName;
 }
 
+ValueMetaDataKey::ValueMetaDataKey(
+	const string &propertyName,
+	const uint8_t *valueName,
+	const long valueNameLength) {
+	this->propertyName = propertyName;
+	this->valueName = std::string((const char *)valueName, valueNameLength);
+}
+
 /**
  * Get the name of the property which the key relates to.
  * @return name of property
@@ -109,4 +117,9 @@ string ValueMetaData::getDescription() const {
 
 string ValueMetaData::getUrl() const {
 	return url;
+}
+
+std::vector<uint8_t> ValueMetaData::getUtf8ValueName() const {
+	const std::string& name = getName();
+	return std::vector<uint8_t>(name.begin(), name.end());
 }
