@@ -27,10 +27,18 @@
 %rename (ValueMetaDataKeySwig) ValueMetaDataKey;
 %rename (ValueMetaDataSwig) ValueMetaData;
 
+#ifdef SWIGCSHARP
+%include "CsTypes.i"
+#endif
+#ifdef SWIGJAVA
+%include "JavaTypes.i"
+#endif
+
 class ValueMetaDataKey
 {
 public:
 	ValueMetaDataKey(std::string propertyName, std::string valueName);
+	ValueMetaDataKey(std::string propertyName, unsigned char data[], long length);
 	std::string getPropertyName();
 	std::string getValueName();
 };

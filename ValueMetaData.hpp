@@ -60,6 +60,19 @@ namespace FiftyoneDegrees {
 			ValueMetaDataKey(string propertyName, string valueName);
 
 			/**
+			 * Construct a new instance of ValueMetaDataKey from the unique
+			 * combination of property and value names.
+			 * @param propertyName the name of the property the value relates
+			 * to
+			 * @param valueName the name of the value
+			 * @param valueNameLength the length of the name of the value
+			 */
+			ValueMetaDataKey(
+				const string &propertyName,
+				const uint8_t *valueName,
+				long valueNameLength);
+
+			/**
 			 * @}
 			 * @name Getters
 			 * @{
