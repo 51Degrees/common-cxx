@@ -453,13 +453,13 @@ static Collection* createFromFileToMemory(
 
 	// Position the file reader at the start of the collection.
 	if (FileSeek(file, (FileOffset)header.startPosition, SEEK_SET) != 0) {
-		free(data);
+		Free(data);
 		return NULL;
 	}
 
 	// Read the portion of the file into memory.
 	if (fread(memory.startByte, 1, header.length, file) != header.length) {
-		free(data);
+		Free(data);
 		return NULL;
 	}
 
@@ -467,7 +467,7 @@ static Collection* createFromFileToMemory(
 	Collection * const result = CollectionCreateFromMemory(&memory, header);
 
 	if (result == NULL) {
-		free(data);
+		Free(data);
 		return NULL;
 	}
 
