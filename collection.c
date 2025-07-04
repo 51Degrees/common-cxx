@@ -555,12 +555,9 @@ static Collection* createFromFileCached(
 }
 
 /**
- * Either the first collection does not contain any in memory items, or there
- * is a need for a secondary collection to be used if the first does not
- * contain any items. Returns the second collection, or NULL if there is no
- * need for one.
+ * Creates a collection, selecting between full file mode, or adding a cache.
  */
-static Collection* createFromFileSecond(
+static Collection* createFromFileMaybeCached(
 	FILE *file,
 	FilePool *reader,
 	const CollectionConfig *config,
@@ -735,14 +732,9 @@ fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromFile(
 			return NULL;
 		
 		}
-	}
-
-	if (result == NULL || (
-		(((bool)result->count) == config->loaded) &&
-		(FileOffset)result->size < (FileTell(file) - (FileOffset)header.startPosition))) {
-
+	} else {
 		// Create the next collection if one is needed.
-		result = createFromFileSecond(file, reader, config, header, read);
+		result = createFromFileMaybeCached(file, reader, config, header, read);
 	}
 
 #else
