@@ -432,79 +432,51 @@ static Collection* createFromFile(
 	return collection;
 }
 
+#endif
+
 static Collection* createFromFileToMemory(
 	FILE *file,
-	FilePool *reader,
-	CollectionHeader *header,
-	CollectionFileRead read) {
+	CollectionHeader header) {
 	EXCEPTION_CREATE;
+	byte * const data = (byte*)Malloc(header.length * sizeof(byte));
+	MemoryReader memory;
 
-	// Create a file collection to populate the memory collection.
-	Collection *source = createFromFile(file, reader, header, read);
-
-	// Allocate the memory for the collection and implementation.
-	Collection *collection = createCollection(
-		sizeof(CollectionFile),
-		header,
-		"CollectionMemory");
-	CollectionMemory *memory = (CollectionMemory*)collection->state;
-	memory->memoryToFree = NULL;
-	memory->collection = collection;
-
-	// Get the number of bytes that need to be loaded into memory.
-	memory->collection->count = header->count;
-	memory->collection->size = header->length;
-
-	// Allocate sufficient memory for the data to be stored in.
-	memory->firstByte = (byte*)Malloc(memory->collection->size);
-	if (memory->firstByte == NULL) {
-		freeMemoryCollection(collection);
-		source->freeCollection(source);
+	memory.current = data;
+	if (memory.current == NULL) {
+		Free(data);
 		return NULL;
 	}
-	memory->memoryToFree = memory->firstByte;
+
+	memory.startByte = memory.current;
+	memory.length = (FileOffset)header.length;
+	memory.lastByte = memory.current + memory.length;
 
 	// Position the file reader at the start of the collection.
-	if (FileSeek(file, header->startPosition, SEEK_SET) != 0) {
-		freeMemoryCollection(collection);
-		source->freeCollection(source);
+	if (FileSeek(file, (FileOffset)header.startPosition, SEEK_SET) != 0) {
+		Free(data);
 		return NULL;
 	}
 
 	// Read the portion of the file into memory.
-	if (fread(memory->firstByte, 1, memory->collection->size, file) !=
-		memory->collection->size) {
-		freeMemoryCollection(collection);
-		source->freeCollection(source);
+	if (fread(memory.startByte, 1, header.length, file) != header.length) {
+		Free(data);
 		return NULL;
 	}
 
-	// Set the last byte to enable checking for invalid requests.
-	memory->lastByte = memory->firstByte + memory->collection->size;
+	header.startPosition = 0;
+	Collection * const result = CollectionCreateFromMemory(&memory, header);
 
-	// Set the getter to a method that will check for another collection
-	// if the memory collection does not contain the entry.
-	if (memory->collection->elementSize != 0) {
-		collection->get = getMemoryFixed;
-		memory->collection->count = memory->collection->size /
-			memory->collection->elementSize;
+	if (result == NULL) {
+		Free(data);
+		return NULL;
 	}
-	else {
-		collection->get = getMemoryVariable;
-	}
-	if (fiftyoneDegreesCollectionGetIsMemoryOnly()) {
-		collection->release = NULL;
-	}
-	else {
-		collection->release = releaseMemory;
-	}
-	collection->freeCollection = freeMemoryCollection;
 
-	// Finally free the file collection which is no longer needed.
-	source->freeCollection(source);
+	((CollectionMemory*)result->state)->memoryToFree = data;
 
-	return collection;
+	return result;
 }
+
+#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
 static Collection* createFromFileCached(
 	FILE *file,
@@ -555,12 +527,9 @@ static Collection* createFromFileCached(
 }
 
 /**
- * Either the first collection does not contain any in memory items, or there
- * is a need for a secondary collection to be used if the first does not
- * contain any items. Returns the second collection, or NULL if there is no
- * need for one.
+ * Creates a collection, selecting between full file mode, or adding a cache.
  */
-static Collection* createFromFileSecond(
+static Collection* createFromFileMaybeCached(
 	FILE *file,
 	FilePool *reader,
 	const CollectionConfig *config,
@@ -701,94 +670,33 @@ fiftyoneDegreesCollectionHeader fiftyoneDegreesCollectionHeaderFromFile(
 	}
 	else {
 		header.startPosition = 0;
+		header.length = header.count = 0;
 	}
 
 	return header;
 }
 
-#if defined(_MSC_VER) && defined(FIFTYONE_DEGREES_MEMORY_ONLY)
-#pragma warning (disable: 4100)
-#endif
 fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromFile(
 	FILE *file,
 	fiftyoneDegreesFilePool *reader,
 	const fiftyoneDegreesCollectionConfig *config,
 	fiftyoneDegreesCollectionHeader header,
 	fiftyoneDegreesCollectionFileRead read) {
-	Collection *result = NULL;
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
-
-	if (config->loaded > 0) {
-
-		// If the collection should be partially loaded into memory set the
-		// first collection to be a memory collection with the relevant number
-		// of entries loaded.
-		result = createFromFileToMemory(
-			file,
-			reader,
-			&header,
-			read);
-
-		if (result == NULL) {
-			// The collection could not be created from file.
-			return NULL;
-		
-		}
+	if (!config->loaded) {
+		return createFromFileMaybeCached(file, reader, config, header, read);
 	}
-
-	if (result == NULL || (
-		(((bool)result->count) == config->loaded) &&
-		(FileOffset)result->size < (FileTell(file) - (FileOffset)header.startPosition))) {
-
-		// Create the next collection if one is needed.
-		result = createFromFileSecond(file, reader, config, header, read);
-	}
-
 #else
-
-	byte *data = (byte*)Malloc(header.length * sizeof(byte));
-	MemoryReader memory;
-
-	memory.current = data;
-	if (memory.current == NULL) {
-		Free(data);
-		return NULL;
-	}
-	
-	memory.startByte = memory.current;
-	memory.length = (FileOffset)header.length;
-	memory.lastByte = memory.current + memory.length;
-
-	// Position the file reader at the start of the collection.
-	if (FileSeek(file, header.startPosition, SEEK_SET) != 0) {
-		free(data);
-		return NULL;
-	}
-
-	// Read the portion of the file into memory.
-	if (fread(memory.startByte, 1, header.length, file) != header.length) {
-		free(data);
-		return NULL;
-	}
-
-	header.startPosition = 0;
-	result = CollectionCreateFromMemory(&memory, header);
-
-	if (result == NULL) {
-		free(data);
-		return NULL;
-	}
-
-	((CollectionMemory*)result->state)->memoryToFree = data;
-
+#	ifdef _MSC_VER
+	UNREFERENCED_PARAMETER(reader);
+	UNREFERENCED_PARAMETER(config);
+	UNREFERENCED_PARAMETER(read);
+#	endif
 #endif
 
-	return result;
+	return createFromFileToMemory(file, header);
 }
-#if defined(_MSC_VER) && defined(FIFTYONE_DEGREES_MEMORY_ONLY)
-#pragma warning (default: 4100)
-#endif
 
 fiftyoneDegreesFileHandle* fiftyoneDegreesCollectionReadFilePosition(
 	const fiftyoneDegreesCollectionFile *file,
@@ -866,6 +774,7 @@ void* fiftyoneDegreesCollectionReadFileFixed(
 					// The read failed so free the memory allocated and set the
 					// status code.
 					Free(data->ptr);
+					DataReset(data);
 					EXCEPTION_SET(COLLECTION_FILE_READ_FAIL);
 				}
 			}
