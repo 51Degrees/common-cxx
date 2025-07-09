@@ -155,6 +155,19 @@ typedef bool(*fiftyoneDegreesProfileIterateValueIndexesMethod)(
 	uint32_t valueIndex);
 
 /**
+ * Gets size of Profile with trailing values.
+ * @param initial pointer to profile "head"
+ * @return full (with tail) struct size
+ */
+#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
+EXTERNAL uint32_t fiftyoneDegreesProfileGetFinalSize(
+	const void *initial,
+	fiftyoneDegreesException * const exception);
+#else
+#define fiftyoneDegreesProfileGetFinalSize NULL
+#endif
+
+/**
  * Gets the profile associated with the profileId or NULL if there is no
  * corresponding profile.
  * @param profileOffsets collection containing the profile offsets (with profile ID)
@@ -200,15 +213,15 @@ EXTERNAL fiftyoneDegreesProfile* fiftyoneDegreesProfileGetByIndex(
  * Read a profile from the file collection provided and store in the data
  * pointer. This method is used when creating a collection from file.
  * @param file collection to read from
- * @param offset of the profile in the collection
+ * @param key of the profile in the collection
  * @param data to store the resulting profile in
  * @param exception pointer to an exception data structure to be used if an
  * exception occurs. See exceptions.h
  * @return pointer to the profile allocated within the data structure
  */
-void* fiftyoneDegreesProfileReadFromFile(
+EXTERNAL void* fiftyoneDegreesProfileReadFromFile(
 	const fiftyoneDegreesCollectionFile *file,
-	uint32_t offset,
+	const fiftyoneDegreesCollectionKey *key,
 	fiftyoneDegreesData *data,
 	fiftyoneDegreesException *exception);
 #endif
@@ -226,9 +239,9 @@ void* fiftyoneDegreesProfileReadFromFile(
  * @return the number of matching values which have been iterated
  */
 EXTERNAL uint32_t fiftyoneDegreesProfileIterateValuesForProperty(
-	fiftyoneDegreesCollection *values,
-	fiftyoneDegreesProfile *profile,
-	fiftyoneDegreesProperty *property,
+	const fiftyoneDegreesCollection *values,
+	const fiftyoneDegreesProfile *profile,
+	const fiftyoneDegreesProperty *property,
 	void *state,
 	fiftyoneDegreesProfileIterateMethod callback,
 	fiftyoneDegreesException *exception);
@@ -248,11 +261,11 @@ EXTERNAL uint32_t fiftyoneDegreesProfileIterateValuesForProperty(
  * @return the number of matching values which have been iterated
  */
 EXTERNAL uint32_t fiftyoneDegreesProfileIterateValuesForPropertyWithIndex(
-	fiftyoneDegreesCollection* values,
+	const fiftyoneDegreesCollection* values,
 	fiftyoneDegreesIndicesPropertyProfile* index,
 	uint32_t availablePropertyIndex,
-	fiftyoneDegreesProfile* profile,
-	fiftyoneDegreesProperty* property,
+	const fiftyoneDegreesProfile* profile,
+	const fiftyoneDegreesProperty* property,
 	void* state,
 	fiftyoneDegreesProfileIterateMethod callback,
 	fiftyoneDegreesException* exception);
@@ -315,7 +328,7 @@ EXTERNAL uint32_t fiftyoneDegreesProfileIterateProfilesForPropertyWithTypeAndVal
 	fiftyoneDegreesCollection *propertyTypes,
 	fiftyoneDegreesCollection *values,
 	fiftyoneDegreesCollection *profiles,
-	fiftyoneDegreesCollection *profileOffsets,
+	const fiftyoneDegreesCollection *profileOffsets,
 	fiftyoneDegreesProfileOffsetValueExtractor offsetValueExtractor,
 	const char *propertyName,
 	const char* valueName,

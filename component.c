@@ -22,8 +22,14 @@
 
 #include "component.h"
 #include "fiftyone.h"
+#include "collectionKeyTypes.h"
 
-static uint32_t getFinalComponentSize(void *initial) {
+uint32_t fiftyoneDegreesComponentGetFinalSize(
+	const void *initial,
+    Exception * const exception) {
+#	ifdef _MSC_VER
+    UNREFERENCED_PARAMETER(exception);
+#	endif
 	Component *component = (Component*)initial;
 	int32_t trailing = (component->keyValuesCount - 1) * 
 		sizeof(fiftyoneDegreesComponentKeyValuePair);
@@ -38,9 +44,13 @@ uint32_t fiftyoneDegreesComponentGetDefaultProfileId(
 	Item profileItem;
 	Profile *profile;
 	DataReset(&profileItem.data);
+	const CollectionKey profileKey = {
+		component->defaultProfileOffset,
+		CollectionKeyType_Profile,
+	};
 	profile = (Profile*)profiles->get(
 		profiles,
-		component->defaultProfileOffset,
+		&profileKey,
 		&profileItem,
 		exception);
 	if (profile != NULL && EXCEPTION_OKAY) {
@@ -50,7 +60,7 @@ uint32_t fiftyoneDegreesComponentGetDefaultProfileId(
 	return profileId;
 }
 
-fiftyoneDegreesString* fiftyoneDegreesComponentGetName(
+const fiftyoneDegreesString* fiftyoneDegreesComponentGetName(
 	fiftyoneDegreesCollection *stringsCollection,
 	fiftyoneDegreesComponent *component,
 	fiftyoneDegreesCollectionItem *item,
@@ -81,17 +91,15 @@ fiftyoneDegreesComponentGetKeyValuePair(
 
 void* fiftyoneDegreesComponentReadFromFile(
 	const fiftyoneDegreesCollectionFile *file,
-	uint32_t offset,
+	const CollectionKey *key,
 	fiftyoneDegreesData *data,
 	fiftyoneDegreesException *exception) {
 	Component component = { 0, 0, 0, 0, { 0, 0 } };
 	return CollectionReadFileVariable(
 		file,
 		data,
-		offset,
+		key,
 		&component,
-		sizeof(Component) - sizeof(fiftyoneDegreesComponentKeyValuePair),
-		getFinalComponentSize,
 		exception);
 }
 
@@ -106,20 +114,32 @@ void fiftyoneDegreesComponentInitList(
 	Item item;
 	Component *component;
 	if (ListInit(list, count) == list) {
+		CollectionKeyType keyType = {
+			FIFTYONE_DEGREES_COLLECTION_ENTRY_TYPE_COMPONENT,
+			0, // TBD
+			fiftyoneDegreesComponentGetFinalSize,
+		};
 		while (list->count < count && EXCEPTION_OKAY) {
 
 			// Get the component and add it to the list.
 			DataReset(&item.data);
+			keyType.initialBytesCount = sizeof(Component) - sizeof(fiftyoneDegreesComponentKeyValuePair);
+			const CollectionKey componentKey = {
+				offset,
+				&keyType,
+			};
 			component = (Component*)components->get(
 				components,
-				offset,
+				&componentKey,
 				&item,
 				exception);
 			if (component != NULL && EXCEPTION_OKAY) {
 				ListAdd(list, &item);
 
 				// Move to the next component in the collection.
-				offset += getFinalComponentSize((void*)component);
+				offset += fiftyoneDegreesComponentGetFinalSize(
+					(void*)component,
+					exception);
 			}
 		}
 	}
