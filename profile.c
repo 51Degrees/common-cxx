@@ -91,7 +91,7 @@ static int compareProfileIdIndirect(
 	const uint32_t profileOffsetValue = *(uint32_t*)profileOffsetItem->data.ptr;
 	const CollectionKey profileKey = {
 		profileOffsetValue,
-		CollectionKeyType_ProfileOffset,
+		CollectionKeyType_Profile,
 	};
 	const Profile * const profile = (Profile*)search->profiles->get(
 		search->profiles,
