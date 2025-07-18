@@ -60,6 +60,19 @@ namespace FiftyoneDegrees {
 			ValueMetaDataKey(string propertyName, string valueName);
 
 			/**
+			 * Construct a new instance of ValueMetaDataKey from the unique
+			 * combination of property and value names.
+			 * @param propertyName the name of the property the value relates
+			 * to
+			 * @param valueName the name of the value
+			 * @param valueNameLength the length of the name of the value
+			 */
+			ValueMetaDataKey(
+				const string &propertyName,
+				const uint8_t *valueName,
+				long valueNameLength);
+
+			/**
 			 * @}
 			 * @name Getters
 			 * @{
@@ -170,6 +183,12 @@ namespace FiftyoneDegrees {
 			 * @return URL string
 			 */
 			string getUrl() const;
+
+			/**
+			 * Get the name of the value as a UTF-8 byte vector.
+			 * @return value name as UTF-8 bytes
+			 */
+			std::vector<uint8_t> getUtf8ValueName() const;
 
 			/**
 			 * @}

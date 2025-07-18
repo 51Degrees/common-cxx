@@ -20,17 +20,29 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
+%include stdint.i
 %include std_string.i
+%include std_vector.i
+
+%template(UTF8StringSwig) std::vector<uint8_t>;
 
 %nodefaultctor ValueMetaDataKey;
 
 %rename (ValueMetaDataKeySwig) ValueMetaDataKey;
 %rename (ValueMetaDataSwig) ValueMetaData;
 
+#ifdef SWIGCSHARP
+%include "CsTypes.i"
+#endif
+#ifdef SWIGJAVA
+%include "JavaTypes.i"
+#endif
+
 class ValueMetaDataKey
 {
 public:
 	ValueMetaDataKey(std::string propertyName, std::string valueName);
+	ValueMetaDataKey(std::string propertyName, unsigned char data[], long length);
 	std::string getPropertyName();
 	std::string getValueName();
 };
@@ -43,4 +55,5 @@ public:
 	std::string getName();
 	std::string getDescription();
 	std::string getUrl();
+	std::vector<uint8_t> getUtf8ValueName();
 };
