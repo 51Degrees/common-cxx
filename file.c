@@ -181,7 +181,7 @@ static StatusCode fileOpen(
 }
 
 static StatusCode fileCopy(FILE *source, FILE *destination) {
-	unsigned char buffer[8192];
+	unsigned char buffer[65536]; // Increased from 8KB to 64KB for better performance, especially on Windows
 	size_t lengthRead, lengthWritten = 0;
 	if (FileSeek(source, 0L, SEEK_END) == 0) {
 		FileSeek(source, 0L, SEEK_SET);
