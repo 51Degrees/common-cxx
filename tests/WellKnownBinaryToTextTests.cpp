@@ -22,7 +22,6 @@
 
 #include "pch.h"
 #include "../fiftyone.h"
-#include "../string.h"
 #include "../wkbtot.h"
 
 static bool CheckResult(const char *result, const char *expected, size_t const size) {
@@ -35,21 +34,22 @@ static bool CheckResult(const char *result, const char *expected, size_t const s
 	return match;
 }
 
-static size_t constexpr DEFAULT_BUFFER_SIZE = 1024;
+static size_t constexpr DEFAULT_BUFFER_SIZE = 8192;
 
 static void convertAndCompare_base(
 	const byte * const wkbBytes,
 	const char * const expected,
 	const char * const comment,
 	int8_t const decimalPlaces,
-	int const statusCode) {
+	int const statusCode,
+	WkbtotReductionMode reductionMode = FIFTYONE_DEGREES_WKBToT_REDUCTION_NONE) {
 
 	char buffer[DEFAULT_BUFFER_SIZE] = { 0 };
 	FIFTYONE_DEGREES_EXCEPTION_CREATE;
 
 	auto const result = fiftyoneDegreesConvertWkbToWkt(
 		wkbBytes,
-		FIFTYONE_DEGREES_WKBToT_REDUCTION_NONE,
+		reductionMode,
 		buffer, std::size(buffer),
 		decimalPlaces,
 		exception);
@@ -79,26 +79,30 @@ static void convertAndCompare_withDecimalPlaces(
 	const byte * const wkbBytes,
 	const char * const expected,
 	const char * const comment,
-	int8_t const decimalPlaces) {
+	int8_t const decimalPlaces,
+	WkbtotReductionMode reductionMode = FIFTYONE_DEGREES_WKBToT_REDUCTION_NONE) {
 
 	convertAndCompare_base(
 		wkbBytes,
 		expected,
 		comment,
 		decimalPlaces,
-		-1);  // no exception expected
+		-1,
+		reductionMode);  // no exception expected
 }
 
 static void convertAndCompare(
 	const byte * const wkbBytes,
 	const char * const expected,
-	const char * const comment) {
+	const char * const comment,
+	WkbtotReductionMode reductionMode = FIFTYONE_DEGREES_WKBToT_REDUCTION_NONE) {
 
 	convertAndCompare_withDecimalPlaces(
 		wkbBytes,
 		expected,
 		comment,
-		15); // max precision
+		15,
+		reductionMode); // max precision
 }
 
 static void convertAndCompare_withExceptionStatus(
@@ -1033,4 +1037,21 @@ TEST(WKBToT, WKBToT_String_Point_2D_NDR)
 
 	const byte * const wkbBytes = &wkbStringBytes[2];
 	convertAndCompare(wkbBytes, expected, "Point 2D (NDR) from String");
+}
+
+TEST(WKBToT, WKBToT_String_Multipolygon_Broken1)
+{
+	constexpr byte wkbStringBytes[] = {
+		0x50,0x01, // 336
+		1,6,2,0,1,3,1,0,43,0,179,143,6,30,171,143,12,30,165,143,20,30,160,143,30,30,155,143,42,30,152,143,56,30,151,143,69,30,151,143,84,30,152,143,98,30,155,143,112,30,159,143,124,30,164,143,135,30,228,168,230,67,234,168,236,67,241,168,240,67,248,168,243,67,0,169,244,67,46,184,215,67,52,184,215,67,247,203,124,63,0,204,120,63,8,204,115,63,15,204,106,63,63,205,157,61,67,205,149,61,71,205,139,61,156,205,101,60,158,205,94,60,161,205,76,60,163,205,63,60,163,205,50,60,159,205,14,60,156,205,253,59,31,199,132,36,28,199,121,36,23,199,111,36,17,199,102,36,11,199,95,36,4,199,91,36,253,198,89,36,194,143,2,30,186,143,3,30,179,143,6,30,1,3,1,0,37,0,234,208,212,25,228,208,219,25,222,208,228,25,216,208,239,25,211,208,254,25,207,208,10,26,205,208,24,26,204,208,38,26,204,208,52,26,205,208,66,26,208,208,79,26,212,208,91,26,221,208,113,26,227,208,124,26,234,208,133,26,241,208,139,26,249,208,142,26,1,209,142,26,9,209,139,26,17,209,133,26,23,209,125,26,29,209,114,26,33,209,101,26,37,209,87,26,38,209,72,26,40,209,36,26,40,209,20,26,38,209,4,26,35,209,245,25,29,209,232,25,23,209,221,25,16,209,213,25,8,209,208,25,255,208,207,25,250,208,207,25,242,208,208,25,234,208,212,25,
+	};
+	const char * const expected = "MULTIPOLYGON(((-157.928 21.111,-157.972 21.127,-158.005 21.149,-158.032 21.177,-158.06 21.21,-158.076 21.248,-158.082 21.284,-158.082 21.325,-158.076 21.364,-158.06 21.402,-158.038 21.435,-158.01 21.465,-122.501 47.743,-122.468 47.759,-122.43 47.77,-122.391 47.778,-122.347 47.781, 47.701,-100.967 47.701,-73.177 44.639,-73.127 44.628,-73.083 44.614,-73.045 44.589,-71.375 43.323,-71.353 43.301,-71.331 43.274,-70.864 42.466,-70.853 42.447,-70.837 42.398,-70.826 42.362,-70.826 42.326,-70.847 42.227,-70.864 42.181,-79.988 25.676,-80.005 25.646,-80.032 25.618,-80.065 25.593,-80.098 25.574,-80.137 25.563,-80.175 25.558,-157.845 21.1,-157.889 21.103,-157.928 21.111)),((-66.217 18.161,-66.25 18.18,-66.283 18.205,-66.316 18.235,-66.343 18.276,-66.365 18.309,-66.376 18.348,-66.381 18.386,-66.381 18.425,-66.376 18.463,-66.359 18.499,-66.337 18.532,-66.288 18.592,-66.255 18.622,-66.217 18.647,-66.178 18.664,-66.134 18.672,-66.09 18.672,-66.046 18.664,-66.002 18.647,-65.969 18.625,-65.936 18.595,-65.914 18.559,-65.893 18.521,-65.887 18.48,-65.876 18.381,-65.876 18.337,-65.887 18.293,-65.904 18.252,-65.936 18.216,-65.969 18.186,-66.008 18.164,-66.052 18.15,-66.101 18.147,-66.129 18.147,-66.173 18.15,-66.217 18.161)))";
+
+	const byte * const wkbBytes = &wkbStringBytes[2];
+	convertAndCompare_withDecimalPlaces(
+		wkbBytes,
+		expected,
+		"Multipolygon Broken1",
+		3,
+		FIFTYONE_DEGREES_WKBToT_REDUCTION_SHORT);
 }
