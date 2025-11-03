@@ -162,8 +162,8 @@ StringBuilder* fiftyoneDegreesStringBuilderAddDouble(
 			if (intPart < 0) {
 				intPart--;
 			} else {
-			intPart++;
-		}
+				intPart++;
+			}
 		}
 		StringBuilderAddInteger(builder, intPart);
 		return builder;
@@ -191,7 +191,12 @@ StringBuilder* fiftyoneDegreesStringBuilderAddDouble(
 				break;
 			} else {
 				// tail collapsed into 1
-				StringBuilderAddInteger(builder, ++intPart);
+				if (intPart < 0) {
+					intPart--;
+				} else {
+					intPart++;
+				}
+				StringBuilderAddInteger(builder, intPart);
 				return builder;
 			}
 		}
@@ -208,7 +213,7 @@ StringBuilder* fiftyoneDegreesStringBuilderAddDouble(
 			break;
 		}
 		--digitsToAdd;
-		}
+	}
 	if (digitsToAdd <= 0) {
 		// tail collapsed to 0
 		StringBuilderAddInteger(builder, intPart);
