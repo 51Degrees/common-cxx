@@ -210,6 +210,8 @@ StringBuilder* fiftyoneDegreesStringBuilderAddDouble(
 		--digitsToAdd;
 		}
 	if (digitsToAdd <= 0) {
+		// tail collapsed to 0
+		StringBuilderAddInteger(builder, intPart);
 		return builder;
 	}
 	for (; nextDigit >= digits; --nextDigit) {
