@@ -200,6 +200,13 @@ TEST_F(Strings, StringBuilder_OneChar) {
     builder = prev;
 }
 
+TEST_F(Strings, StringBuilder_AddDouble_TripleZero) {
+    StringBuilderInit(builder);
+    StringBuilderAddDouble(builder, -101.00039674062319, 3);
+    StringBuilderComplete(builder);
+    EXPECT_STREQ(builder->ptr, "-101");
+}
+
 TEST_F(Strings, StringBuilder_AddDouble) {
     {
         StringBuilderInit(builder);
