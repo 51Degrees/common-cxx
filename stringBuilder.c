@@ -156,13 +156,14 @@ StringBuilder* fiftyoneDegreesStringBuilderAddDouble(
 		}
 		fracPart = -fracPart;
 	}
-	if (remDigits <= 0 && fracPart >= 0.5) {
-		intPart++;
-	}
 
 	if (!fracPart || remDigits <= 0) {
 		if (fracPart >= 0.5) {
-			intPart++;
+			if (intPart < 0) {
+				intPart--;
+			} else {
+				intPart++;
+			}
 		}
 		StringBuilderAddInteger(builder, intPart);
 		return builder;
@@ -190,7 +191,12 @@ StringBuilder* fiftyoneDegreesStringBuilderAddDouble(
 				break;
 			} else {
 				// tail collapsed into 1
-				StringBuilderAddInteger(builder, ++intPart);
+				if (intPart < 0) {
+					intPart--;
+				} else {
+					intPart++;
+				}
+				StringBuilderAddInteger(builder, intPart);
 				return builder;
 			}
 		}
@@ -207,8 +213,10 @@ StringBuilder* fiftyoneDegreesStringBuilderAddDouble(
 			break;
 		}
 		--digitsToAdd;
-		}
+	}
 	if (digitsToAdd <= 0) {
+		// tail collapsed to 0
+		StringBuilderAddInteger(builder, intPart);
 		return builder;
 	}
 	for (; nextDigit >= digits; --nextDigit) {
