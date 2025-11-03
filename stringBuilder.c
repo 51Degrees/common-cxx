@@ -156,13 +156,14 @@ StringBuilder* fiftyoneDegreesStringBuilderAddDouble(
 		}
 		fracPart = -fracPart;
 	}
-	if (remDigits <= 0 && fracPart >= 0.5) {
-		intPart++;
-	}
 
 	if (!fracPart || remDigits <= 0) {
 		if (fracPart >= 0.5) {
+			if (intPart < 0) {
+				intPart--;
+			} else {
 			intPart++;
+		}
 		}
 		StringBuilderAddInteger(builder, intPart);
 		return builder;
