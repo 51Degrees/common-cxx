@@ -159,7 +159,7 @@ StringBuilder* fiftyoneDegreesStringBuilderAddDouble(
 
 	if (!fracPart || remDigits <= 0) {
 		if (fracPart >= 0.5) {
-			if (intPart < 0) {
+			if (value < 0) {
 				intPart--;
 			} else {
 				intPart++;
@@ -191,13 +191,10 @@ StringBuilder* fiftyoneDegreesStringBuilderAddDouble(
 				break;
 			} else {
 				// tail collapsed into 1
-				if (intPart < 0) {
+				if (value < 0) {
 					intPart--;
 				} else {
 					intPart++;
-				}
-				if (addNegative) {
-					StringBuilderAddChar(builder, '-');
 				}
 				StringBuilderAddInteger(builder, intPart);
 				return builder;
