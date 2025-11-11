@@ -196,6 +196,9 @@ StringBuilder* fiftyoneDegreesStringBuilderAddDouble(
 				} else {
 					intPart++;
 				}
+				if (addNegative) {
+					StringBuilderAddChar(builder, '-');
+				}
 				StringBuilderAddInteger(builder, intPart);
 				return builder;
 			}
