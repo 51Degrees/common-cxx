@@ -228,6 +228,20 @@ TEST_F(Strings, StringBuilder_AddDouble_NegativeRoundDown) {
     EXPECT_STREQ(builder->ptr, "-101");
 }
 
+TEST_F(Strings, StringBuilder_AddDouble_NegativeZeroRoundUp9999) {
+    StringBuilderInit(builder);
+    StringBuilderAddDouble(builder, -.9999, 3);
+    StringBuilderComplete(builder);
+    EXPECT_STREQ(builder->ptr, "-1");
+}
+
+TEST_F(Strings, StringBuilder_AddDouble_NegativeZeroRoundDown) {
+    StringBuilderInit(builder);
+    StringBuilderAddDouble(builder, -.4, 0);
+    StringBuilderComplete(builder);
+    EXPECT_STREQ(builder->ptr, "0");
+}
+
 TEST_F(Strings, StringBuilder_AddDouble) {
     {
         StringBuilderInit(builder);
