@@ -34,7 +34,10 @@ endif()
 include(CTest)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_LIST_DIR}/cmake)
 
-find_package(Threads REQUIRED)
+# Skip thread detection for WASI (WebAssembly doesn't support threading in the same way)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "WASI")
+	find_package(Threads REQUIRED)
+endif()
 
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "^arm" OR CMAKE_SYSTEM_PROCESSOR MATCHES "^aarch64")
 	set(IS_ARM TRUE)

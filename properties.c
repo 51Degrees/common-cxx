@@ -51,10 +51,13 @@ static size_t getMemorySize(uint32_t count) {
 static uint32_t countAvailableProperties(propertiesSource *source) {
 	Item stringItem;
 	uint32_t i = 0;
+	const void *result;
 	DataReset(&stringItem.data);
-	while (source->getName(source->state, i, &stringItem) != NULL) {
+	result = source->getName(source->state, i, &stringItem);
+	while (result != NULL) {
 		COLLECTION_RELEASE(stringItem.collection, &stringItem);
 		i++;
+		result = source->getName(source->state, i, &stringItem);
 	}
 	return i;
 }

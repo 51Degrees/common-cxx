@@ -137,6 +137,11 @@ static void setupResource(
 			sizeof(InterlockDoubleWidth),
 			sizeof(ResourceHandle));
 
+	// WASM DEBUG: Check if malloc succeeded
+	if (handle == NULL) {
+		return;
+	}
+
 	// Set the handle and the number of users of the resource to zero.
 	handle->counter = emptyCounter();
 	setHandle(&handle->counter, handle);

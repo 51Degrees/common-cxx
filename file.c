@@ -135,30 +135,7 @@ static StatusCode fileOpen(
 	FILE** handle,
 	const char *mode) {
 	// Open the file and hold on to the data.ptr.
-#ifndef _MSC_FULL_VER
-	unsigned int originalMask = 0;
-	if (strcmp(mode, "wb") == 0) {
-		originalMask = umask(0);
-	}
-
-	*handle = fopen(fileName, mode);
-
-	if (strcmp(mode, "wb") == 0) {
-		umask(originalMask);
-	}
-	
-	if (*handle == NULL) {
-		if (strcmp(mode, "rb") == 0) {
-			return FILE_NOT_FOUND;
-		}
-		else if (strcmp(mode, "wb") == 0) {
-			return FILE_WRITE_ERROR;
-		}
-		else {
-			return FILE_FAILURE;
-		}
-	}
-#else
+#ifdef _MSC_FULL_VER
 	/* If using Microsoft use the fopen_s method to avoid warning */
 	errno_t error = fopen_s(handle, fileName, mode);
 	if (error != 0) {
@@ -174,6 +151,35 @@ static StatusCode fileOpen(
 		case ENOENT:
 		default:
 			return FILE_NOT_FOUND;
+		}
+	}
+#else
+	/* Non-MSVC platforms */
+#ifndef __wasi__
+	/* WASI doesn't support umask - file permissions are handled differently */
+	unsigned int originalMask = 0;
+	if (strcmp(mode, "wb") == 0) {
+		originalMask = umask(0);
+	}
+#endif
+
+	*handle = fopen(fileName, mode);
+
+#ifndef __wasi__
+	if (strcmp(mode, "wb") == 0) {
+		umask(originalMask);
+	}
+#endif
+
+	if (*handle == NULL) {
+		if (strcmp(mode, "rb") == 0) {
+			return FILE_NOT_FOUND;
+		}
+		else if (strcmp(mode, "wb") == 0) {
+			return FILE_WRITE_ERROR;
+		}
+		else {
+			return FILE_FAILURE;
 		}
 	}
 #endif

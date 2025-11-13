@@ -287,7 +287,7 @@ size_t fiftyoneDegreesUnsetMemoryTracking() {
 void *(FIFTYONE_DEGREES_CALL_CONV *fiftyoneDegreesMalloc)(size_t size) =
 fiftyoneDegreesMemoryTrackingMalloc;
 
-void* (FIFTYONE_DEGREES_CALL_CONV* fiftyoneDegreessMallocAligned)(
+void* (FIFTYONE_DEGREES_CALL_CONV* fiftyoneDegreesMallocAligned)(
 	int alignment,
 	size_t size) = fiftyoneDegreesMemoryTrackingMallocAligned;
 

@@ -149,9 +149,10 @@ exception->status = FIFTYONE_DEGREES_STATUS_NOT_SET; \
 
 /**
  * Macro used to check if there is no exception currently.
+ * WASM FIX: Also accept SUCCESS status, not just NOT_SET
  */
 #define FIFTYONE_DEGREES_EXCEPTION_OKAY \
-FIFTYONE_DEGREES_EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_NOT_SET)
+(exception == NULL || exception->status == FIFTYONE_DEGREES_STATUS_NOT_SET || exception->status == FIFTYONE_DEGREES_STATUS_SUCCESS)
 
 #ifdef FIFTYONE_DEGREES_EXCEPTIONS_HPP
 
