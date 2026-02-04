@@ -457,6 +457,33 @@ TEST_F(Evidence, emptyEvidence) {
     std::vector<std::string> results;
     auto iterations = EvidenceIterate(emptyEvidenceKVPA, FIFTYONE_DEGREES_EVIDENCE_QUERY,
      &results, callback1);
-    
+
     EXPECT_EQ(iterations, 0);
+}
+
+bool callbackValidateParsedLength(void* state, fiftyoneDegreesEvidenceKeyValuePair* pair) {
+    std::vector<std::pair<std::string, size_t>>* results =
+        (std::vector<std::pair<std::string, size_t>>*) state;
+    results->push_back(std::make_pair(std::string((const char*)pair->parsedValue), pair->parsedLength));
+    return true;
+}
+
+TEST_F(Evidence, IterateForHeaders_PseudoHeader_ParsedLength) {
+    const char *headers[] = {
+        "Size\x1F""Color",
+    };
+    headersContainer.CreateHeaders(headers, 1, false);
+    CreateEvidence(2);
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Size", "Big");
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Color", "Green");
+
+    std::vector<std::pair<std::string, size_t>> results;
+    fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
+        headersContainer.headerPointers, buffer, bufferSize, &results, callbackValidateParsedLength);
+
+    EXPECT_EQ(results.size(), 1);
+    // "Big\x1FGreen" = 9 characters
+    EXPECT_EQ(results[0].first, "Big\x1FGreen");
+    EXPECT_EQ(results[0].second, strlen(results[0].first.c_str()));
+    EXPECT_EQ(results[0].second, 9);
 }
