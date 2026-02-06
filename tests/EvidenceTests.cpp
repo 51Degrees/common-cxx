@@ -457,6 +457,48 @@ TEST_F(Evidence, emptyEvidence) {
     std::vector<std::string> results;
     auto iterations = EvidenceIterate(emptyEvidenceKVPA, FIFTYONE_DEGREES_EVIDENCE_QUERY,
      &results, callback1);
-    
+
     EXPECT_EQ(iterations, 0);
+}
+
+struct PseudoHeaderLengthResult {
+    std::string value;
+    size_t valueLength;
+    std::string parsedValue;
+    size_t parsedLength;
+};
+
+bool callbackValidateLengths(void* state, fiftyoneDegreesEvidenceKeyValuePair* pair) {
+    std::vector<PseudoHeaderLengthResult>* results =
+        (std::vector<PseudoHeaderLengthResult>*) state;
+    PseudoHeaderLengthResult result;
+    result.value = std::string((const char*)pair->item.value);
+    result.valueLength = pair->item.valueLength;
+    result.parsedValue = std::string((const char*)pair->parsedValue);
+    result.parsedLength = pair->parsedLength;
+    results->push_back(result);
+    return true;
+}
+
+TEST_F(Evidence, IterateForHeaders_PseudoHeader_Lengths) {
+    const char *headers[] = {
+        "Size\x1F""Color",
+    };
+    headersContainer.CreateHeaders(headers, 1, false);
+    CreateEvidence(2);
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Size", "Big");
+    fiftyoneDegreesEvidenceAddString(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING, "Color", "Green");
+
+    std::vector<PseudoHeaderLengthResult> results;
+    fiftyoneDegreesEvidenceIterateForHeaders(evidence, FIFTYONE_DEGREES_EVIDENCE_HTTP_HEADER_STRING,
+        headersContainer.headerPointers, buffer, bufferSize, &results, callbackValidateLengths);
+
+    EXPECT_EQ(results.size(), 1);
+    // "Big\x1FGreen" = 9 characters
+    EXPECT_EQ(results[0].value, "Big\x1FGreen");
+    EXPECT_EQ(results[0].valueLength, strlen(results[0].value.c_str()));
+    EXPECT_EQ(results[0].valueLength, 9);
+    EXPECT_EQ(results[0].parsedValue, "Big\x1FGreen");
+    EXPECT_EQ(results[0].parsedLength, strlen(results[0].parsedValue.c_str()));
+    EXPECT_EQ(results[0].parsedLength, 9);
 }

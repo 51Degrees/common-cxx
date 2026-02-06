@@ -238,9 +238,11 @@ static bool processPseudoHeader(
 	pair.item.keyLength = 0;
 	pair.header = header;
 	pair.item.value = builder->ptr;
-	pair.item.valueLength = builder->added;
+	// As we've added the null terminator, the "added" is 1 longer than
+	// the actual string length.
+	pair.item.valueLength = builder->added - 1;
 	pair.parsedValue = builder->ptr;
-	pair.parsedLength = builder->added;
+	pair.parsedLength = builder->added - 1;
 	pair.prefix = 0;
 	return callback(state, &pair);
 }
