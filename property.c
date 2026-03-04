@@ -104,7 +104,7 @@ PropertyValueType fiftyoneDegreesPropertyGetStoredType(
 			break;
 		}
 	}
-	return result;
+	return PropertyValueTypeGetUnderlyingType(result); // TODO: return result.
 }
 
 PropertyValueType fiftyoneDegreesPropertyGetStoredTypeByIndex(
@@ -129,7 +129,7 @@ PropertyValueType fiftyoneDegreesPropertyGetStoredTypeByIndex(
 		result = record->storedValueType;
 		COLLECTION_RELEASE(propertyTypesCollection, &item);
 	}
-	return result;
+	return PropertyValueTypeGetUnderlyingType(result); // TODO: return result.
 }
 
 const fiftyoneDegreesString* fiftyoneDegreesPropertyGetDescription(

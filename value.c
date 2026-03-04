@@ -111,9 +111,13 @@ const String* fiftyoneDegreesValueGetUrl(
 	const Value *value,
 	CollectionItem *item,
 	Exception *exception) {
+	// TODO: Check if guarded at call site
+	if (value->urlOffsetOrWeight < 0) {
+		return NULL;
+	}
 	return &StoredBinaryValueGet(
 		strings,
-		value->urlOffset,
+		value->urlOffsetOrWeight,
 		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING, // URL is string
 		item,
 		exception)->stringValue;
@@ -246,4 +250,17 @@ const Value* fiftyoneDegreesValueGetByNameAndType(
 		Free(buffer);
 	}
 	return value;
+}
+
+bool fiftyoneDegreesValueIsWeighted(
+	const Value *value) {
+	return FIFTYONE_DEGREES_VALUE_IS_MASKED(value);
+}
+
+uint16_t fiftyoneDegreesValueGetWeight(
+	const Value *value) {
+	if (FIFTYONE_DEGREES_VALUE_IS_MASKED(value)) {
+		return (uint16_t)(value->urlOffsetOrWeight & 0xFFFF);
+	}
+	return 0;
 }

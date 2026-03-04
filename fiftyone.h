@@ -83,6 +83,8 @@
 #include "json.h"
 #include "wkbtot.h"
 #include "constants.h"
+#include "weightedItem.h"
+#include "propertyValueType.h"
 
 /**
  * Macro used to support synonym implementation. Creates a typedef which 
@@ -191,6 +193,8 @@ MAP_TYPE(IpType)
 MAP_TYPE(IpAddress)
 MAP_TYPE(WkbtotResult)
 MAP_TYPE(WkbtotReductionMode)
+MAP_TYPE(WeightedItem)
+MAP_TYPE(WeightedItemList)
 
 #define ProfileGetFinalSize fiftyoneDegreesProfileGetFinalSize /**< Synonym for #fiftyoneDegreesProfileGetFinalSize function. */
 #define ProfileGetOffsetForProfileId fiftyoneDegreesProfileGetOffsetForProfileId /**< Synonym for #fiftyoneDegreesProfileGetOffsetForProfileId function. */
@@ -395,6 +399,14 @@ MAP_TYPE(WkbtotReductionMode)
 #define IpAddressesCompare fiftyoneDegreesIpAddressesCompare /**< Synonym for fiftyoneDegreesIpAddressesCompare */
 #define ConvertWkbToWkt fiftyoneDegreesConvertWkbToWkt /**< Synonym for fiftyoneDegreesConvertWkbToWkt */
 #define WriteWkbAsWktToStringBuilder fiftyoneDegreesWriteWkbAsWktToStringBuilder /**< Synonym for fiftyoneDegreesWriteWkbAsWktToStringBuilder */
+#define WeightedItemListInit fiftyoneDegreesWeightedItemListInit /**< Synonym for fiftyoneDegreesWeightedItemListInit */
+#define WeightedItemListRelease fiftyoneDegreesWeightedItemListRelease /**< Synonym for fiftyoneDegreesWeightedItemListRelease */
+#define WeightedItemListFree fiftyoneDegreesWeightedItemListFree /**< Synonym for fiftyoneDegreesWeightedItemListFree */
+#define WeightedItemListExtend fiftyoneDegreesWeightedItemListExtend /**< Synonym for fiftyoneDegreesWeightedItemListExtend */
+#define WeightedItemListAdd fiftyoneDegreesWeightedItemListAdd /**< Synonym for fiftyoneDegreesWeightedItemListAdd */
+#define ValueGetWeight fiftyoneDegreesValueGetWeight /**< Synonym for fiftyoneDegreesValueGetWeight */
+#define ValueIsWeighted fiftyoneDegreesValueIsWeighted /**< Synonym for fiftyoneDegreesValueIsWeighted */
+#define PropertyValueTypeGetUnderlyingType fiftyoneDegreesPropertyValueTypeGetUnderlyingType /**< Synonym for fiftyoneDegreesPropertyValueTypeGetUnderlyingType */
 
 /* <-- only one asterisk to avoid inclusion in documentation
  * Shortened constants.
