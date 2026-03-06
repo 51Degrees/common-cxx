@@ -46,6 +46,7 @@
     <ClInclude Include="..\..\threading.h" />
     <ClInclude Include="..\..\tree.h" />
     <ClInclude Include="..\..\value.h" />
+    <ClInclude Include="..\..\weightedItem.h" />
     <ClInclude Include="..\..\wkbtot.h" />
     <ClInclude Include="..\..\yamlfile.h" />
   </ItemGroup>
@@ -72,6 +73,7 @@
     <ClCompile Include="..\..\profile.c" />
     <ClCompile Include="..\..\properties.c" />
     <ClCompile Include="..\..\property.c" />
+    <ClCompile Include="..\..\propertyValueType.c" />
     <ClCompile Include="..\..\resource.c" />
     <ClCompile Include="..\..\results.c" />
     <ClCompile Include="..\..\status.c" />
@@ -82,6 +84,7 @@
     <ClCompile Include="..\..\threading.c" />
     <ClCompile Include="..\..\tree.c" />
     <ClCompile Include="..\..\value.c" />
+    <ClCompile Include="..\..\weightedItem.c" />
     <ClCompile Include="..\..\wkbtot.c" />
     <ClCompile Include="..\..\yamlfile.c" />
   </ItemGroup>
