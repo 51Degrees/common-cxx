@@ -819,7 +819,7 @@ const char* fiftyoneDegreesFileGetBaseName(const char *path) {
 	return NULL;
 }
 
-fiftyoneDegreesStatusCode createTempFileWithoutPaths(
+static fiftyoneDegreesStatusCode createTempFileWithoutPaths(
 	const char* masterFile,
 	char* destination,
 	size_t length) {
@@ -837,7 +837,7 @@ fiftyoneDegreesStatusCode createTempFileWithoutPaths(
 	return status;
 }
 
-fiftyoneDegreesStatusCode createTempFileWithPaths(
+static fiftyoneDegreesStatusCode createTempFileWithPaths(
 	const char* masterFile,
 	const char** paths,
 	int count,
