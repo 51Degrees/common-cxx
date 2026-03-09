@@ -24,7 +24,7 @@
 #include "fiftyone.h"
 
 // Number of sequential characters needed to indicate a control block.
-const size_t CONTROL_LENGTH = 3;
+static const size_t CONTROL_LENGTH = 3;
 
 typedef struct pair_state_t {
 	KeyValuePair* pairs; // array of key value evidence pairs
