@@ -111,7 +111,6 @@ const String* fiftyoneDegreesValueGetUrl(
 	const Value *value,
 	CollectionItem *item,
 	Exception *exception) {
-	// TODO: Check if guarded at call site
 	if (value->urlOffsetOrWeight < 0) {
 		return NULL;
 	}
