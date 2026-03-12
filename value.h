@@ -86,8 +86,10 @@ typedef struct fiftyoneDegrees_value_t {
 	                                     the value description */
 	const int32_t urlOffsetOrWeight; /**< The offset in the strings structure to
 	                                     the value URL, or a masked weight if
-	                                     upper 2 bytes == 0xFF00. See
-	                                     fiftyoneDegreesValueIsWeighted(). */
+	                                     upper 2 bytes == 0xFF00 (i.e. value
+	                                     has a form of `0xFF00****` where
+	                                     `****` are weight value bits).
+	                                     See fiftyoneDegreesValueIsWeighted(). */
 } fiftyoneDegreesValue;
 #pragma pack(pop)
 
