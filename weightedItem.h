@@ -64,14 +64,16 @@
 /**
  * A weighted collection item. Represents a value retrieved from the
  * dataset together with a weight indicating the proportion or
- * confidence of this value (out of 65535). Used for profile-level
+ * confidence of this value (out of 65535^2). Used for profile-level
  * weighting (from profile groups) where the weight indicates the
  * proportion of the matched IP range attributable to this profile,
- * or for value-level weighting stored in the Value record.
+ * or for value-level weighting stored in the Value record, or both.
  */
 typedef struct fiftyone_degrees_weighted_item_t {
 	fiftyoneDegreesCollectionItem item; /**< The collection item containing the value */
-	uint32_t rawWeighting; /**< Weight as uint16_t (0-65535^2, representing 0.0-1.0) */
+	uint32_t rawWeighting; /**< Weight as uint32_t (0-65535^2, representing 0.0-1.0).
+						   Final/effective weight after multiplying weights
+						   from both profile group (or "1") and value (or "1").*/
 } fiftyoneDegreesWeightedItem;
 
 /// Max value for WeightedItem.rawWeighting
