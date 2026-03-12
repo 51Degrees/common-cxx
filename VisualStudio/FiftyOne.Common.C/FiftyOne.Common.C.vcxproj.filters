@@ -153,6 +153,9 @@
     <ClInclude Include="..\..\collectionKeyTypes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\weightedItem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\cache.c">
@@ -255,6 +258,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\collectionKeyTypes.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\weightedItem.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\propertyValueType.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

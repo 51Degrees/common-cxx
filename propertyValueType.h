@@ -23,6 +23,8 @@
 #ifndef FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_H_INCLUDED
 #define FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_H_INCLUDED
 
+#include "common.h"
+
 /**
  * Enum of property types.
  */
@@ -79,5 +81,17 @@ typedef enum e_fiftyone_degrees_property_value_type {
 	FIFTYONE_DEGREES_COLLECTION_ENTRY_TYPE_GRAPH_DATA_NODE_BYTES, /**< bytes of node (in graph.c) */
 	FIFTYONE_DEGREES_COLLECTION_ENTRY_TYPE_GRAPH_INFO, /**< fiftyoneDegreesIpiCgInfo */
 } fiftyoneDegreesPropertyValueType;
+
+/**
+ * Returns the underlying (non-weighted) stored value type for a given
+ * property value type. For weighted types (e.g., WeightedString), returns
+ * the base type (e.g., String). For non-weighted types, returns the input
+ * unchanged.
+ * @param type the property value type to get the underlying type for
+ * @return the underlying type, or the input type if not weighted
+ */
+EXTERNAL fiftyoneDegreesPropertyValueType
+fiftyoneDegreesPropertyValueTypeGetUnderlyingType(
+    fiftyoneDegreesPropertyValueType type);
 
 #endif

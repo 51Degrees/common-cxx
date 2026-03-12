@@ -67,6 +67,15 @@
 #include "profile.h"
 #include "common.h"
 
+/**
+ * Macro to check if a Value's urlOffsetOrWeight field carries a masked weight.
+ * A value is weighted when (urlOffsetOrWeight & 0xFFFF0000) == 0xFF000000.
+ * This is distinct from -1 (0xFFFFFFFF, "no URL" sentinel) and from
+ * valid non-negative URL offsets.
+ */
+#define FIFTYONE_DEGREES_VALUE_IS_MASKED(v) \
+	(((v)->urlOffsetOrWeight & 0xFFFF0000) == (int32_t)0xFF000000)
+
 /** Value structure containing meta data relating to the value. */
 #pragma pack(push, 2)
 typedef struct fiftyoneDegrees_value_t {
@@ -75,8 +84,12 @@ typedef struct fiftyoneDegrees_value_t {
 	                              value name */
 	const int32_t descriptionOffset; /**< The offset in the strings structure to
 	                                     the value description */
-	const int32_t urlOffset; /**< The offset in the strings structure to the 
-	                             value URL */
+	const int32_t urlOffsetOrWeight; /**< The offset in the strings structure to
+	                                     the value URL, or a masked weight if
+	                                     upper 2 bytes == 0xFF00 (i.e. value
+	                                     has a form of `0xFF00****` where
+	                                     `****` are weight value bits).
+	                                     See fiftyoneDegreesValueIsWeighted(). */
 } fiftyoneDegreesValue;
 #pragma pack(pop)
 
@@ -240,6 +253,29 @@ EXTERNAL long fiftyoneDegreesValueGetIndexByName(
 	fiftyoneDegreesProperty *property,
 	const char *valueName,
 	fiftyoneDegreesException *exception);
+
+/**
+ * Returns true if the value carries a masked weight.
+ * A value is weighted when (urlOffsetOrWeight & 0xFFFF0000) == 0xFF000000.
+ * This is distinct from -1 (0xFFFFFFFF, "no URL" sentinel) and from
+ * valid non-negative URL offsets.
+ * @param value the value to check
+ * @return true if the value carries a masked weight, false otherwise
+ */
+EXTERNAL bool fiftyoneDegreesValueIsWeighted(
+	const fiftyoneDegreesValue *value);
+
+/**
+ * Gets the weight from a Value record as a uint16_t (0–65535),
+ * or 0 if the value is not weighted.
+ * The weight is stored in the lower 2 bytes of urlOffsetOrWeight
+ * when the upper 2 bytes match the 0xFF00 mask.
+ * To convert to a proportion: (double)weight / UINT16_MAX
+ * @param value the value to get the weight from
+ * @return the weight (0–65535 range), or 0 if not weighted
+ */
+EXTERNAL uint16_t fiftyoneDegreesValueGetWeight(
+	const fiftyoneDegreesValue *value);
 
 /**
  * @}
