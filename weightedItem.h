@@ -120,20 +120,26 @@ EXTERNAL void fiftyoneDegreesWeightedItemListFree(
  * Extends the capacity of the list to the new capacity.
  * @param list pointer to the list to extend
  * @param newCapacity the new capacity (must be greater than current)
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
  */
 EXTERNAL void fiftyoneDegreesWeightedItemListExtend(
 	fiftyoneDegreesWeightedItemList *list,
-	uint32_t newCapacity);
+	uint32_t newCapacity,
+	fiftyoneDegreesException *exception);
 
 /**
  * Adds a copy of the item to the list, extending capacity if needed based
  * on the load factor.
  * @param list pointer to the list to add to
  * @param item pointer to the item to copy into the list
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h.
  */
 EXTERNAL void fiftyoneDegreesWeightedItemListAdd(
 	fiftyoneDegreesWeightedItemList *list,
-	const fiftyoneDegreesWeightedItem *item);
+	const fiftyoneDegreesWeightedItem *item,
+	fiftyoneDegreesException *exception);
 
 /**
  * @}

@@ -20,22 +20,18 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
-#include "weightedItem.h"
-#include "memory.h"
-#include "collection.h"
-#include <assert.h>
-#include <string.h>
+#include "fiftyone.h"
 
 void fiftyoneDegreesWeightedItemListInit(
-	fiftyoneDegreesWeightedItemList *list,
-	uint32_t initialCapacity,
-	float loadFactor) {
+	WeightedItemList * const list,
+	const uint32_t initialCapacity,
+	const float loadFactor) {
 	list->count = 0;
 	list->capacity = initialCapacity;
 	list->loadFactor = loadFactor;
 	if (initialCapacity > 0) {
-		list->items = (fiftyoneDegreesWeightedItem*)fiftyoneDegreesMalloc(
-			sizeof(fiftyoneDegreesWeightedItem) * initialCapacity);
+		list->items = (WeightedItem*)Malloc(
+			sizeof(WeightedItem) * initialCapacity);
 	}
 	else {
 		list->items = NULL;
@@ -43,7 +39,7 @@ void fiftyoneDegreesWeightedItemListInit(
 }
 
 void fiftyoneDegreesWeightedItemListRelease(
-	fiftyoneDegreesWeightedItemList *list) {
+	WeightedItemList * const list) {
 	uint32_t i;
 	for (i = 0; i < list->count; i++) {
 		FIFTYONE_DEGREES_COLLECTION_RELEASE(list->items[i].item.collection, &list->items[i].item);
@@ -52,33 +48,34 @@ void fiftyoneDegreesWeightedItemListRelease(
 }
 
 void fiftyoneDegreesWeightedItemListFree(
-	fiftyoneDegreesWeightedItemList *list) {
-	fiftyoneDegreesWeightedItemListRelease(list);
+	WeightedItemList * const list) {
+	WeightedItemListRelease(list);
 	if (list->items != NULL) {
-		fiftyoneDegreesFree(list->items);
+		Free(list->items);
 		list->items = NULL;
 	}
 	list->capacity = 0;
 }
 
 void fiftyoneDegreesWeightedItemListExtend(
-	fiftyoneDegreesWeightedItemList *list,
-	uint32_t newCapacity) {
+	WeightedItemList * const list,
+	const uint32_t newCapacity,
+	Exception * const exception) {
 	// Allocate new list
 	if (newCapacity > list->capacity) {
-		const size_t newSize = newCapacity * sizeof(fiftyoneDegreesWeightedItem);
-		fiftyoneDegreesWeightedItem * const newItems = 
-			(fiftyoneDegreesWeightedItem*)fiftyoneDegreesMalloc(newSize);
+		const size_t newSize = newCapacity * sizeof(WeightedItem);
+		WeightedItem * const newItems = Malloc(newSize);
 
 		if (newItems == NULL) {
+			EXCEPTION_SET(INSUFFICIENT_MEMORY);
 			return;
 		}
 
-		fiftyoneDegreesWeightedItem * const oldItems = list->items;
+		WeightedItem * const oldItems = list->items;
 		if (oldItems != NULL) {
-			const size_t oldSize = list->count * sizeof(fiftyoneDegreesWeightedItem);
+			const size_t oldSize = list->count * sizeof(WeightedItem);
 			memcpy(newItems, oldItems, oldSize);
-			fiftyoneDegreesFree(oldItems);
+			Free(oldItems);
 		}
 		list->items = newItems;
 		list->capacity = newCapacity;
@@ -86,8 +83,9 @@ void fiftyoneDegreesWeightedItemListExtend(
 }
 
 void fiftyoneDegreesWeightedItemListAdd(
-	fiftyoneDegreesWeightedItemList *list,
-	const fiftyoneDegreesWeightedItem *item) {
+	WeightedItemList * const list,
+	const WeightedItem * const item,
+	Exception * const exception) {
 	assert(list->count < list->capacity);
 	assert(item->item.collection != NULL);
 	list->items[list->count++] = *item;
@@ -97,6 +95,6 @@ void fiftyoneDegreesWeightedItemListAdd(
 		// Get new capacity
 		const uint32_t newCapacity = 
 			list->capacity * FIFTYONE_DEGREES_WEIGHTED_ITEM_LIST_RESIZE_FACTOR;
-		fiftyoneDegreesWeightedItemListExtend(list, newCapacity);
+		WeightedItemListExtend(list, newCapacity, exception);
 	}
 }
