@@ -25,7 +25,7 @@ if (MSVC)
     else()
         message(FATAL_ERROR "Platform toolset version should start with 'v' and followed by numbers. Got ${CMAKE_VS_PLATFORM_TOOLSET}.")
     endif()
-	
+
 	if (CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION VERSION_LESS ${MIN_VS_PLATFORM_VERSION})
         message(FATAL_ERROR "Require at least windows SDK version ${MIN_VS_PLATFORM_VERSION} which can be downloaded from https://developer.microsoft.com/en-us/windows/downloads/sdk-archive/")
     endif()
@@ -146,7 +146,7 @@ else ()
 		target_link_libraries(fiftyone-common-cxx-cov fiftyone-common-c-cov)
 		target_compile_options(fiftyone-common-c-cov PRIVATE "--coverage")
 		target_compile_options(fiftyone-common-cxx-cov PRIVATE "--coverage")
-		set_target_properties(fiftyone-common-c-cov fiftyone-common-cxx-cov	PROPERTIES FOLDER "Common") 
+		set_target_properties(fiftyone-common-c-cov fiftyone-common-cxx-cov	PROPERTIES FOLDER "Common")
 		target_compile_options(fiftyone-common-c-cov PRIVATE ${COMPILE_OPTION_DEBUG} "-Werror" "-Wno-atomic-alignment")
 		target_compile_options(fiftyone-common-cxx-cov PRIVATE ${COMPILE_OPTION_DEBUG} "-Werror")
 	endif()
@@ -168,41 +168,14 @@ if(BUILD_TESTING)
 	else ()
 		target_compile_options(CachePerf PRIVATE ${COMPILE_OPTION_DEBUG} "-Werror")
 	endif()
-	set_target_properties(CachePerf	PROPERTIES FOLDER "Examples/Common") 
+	set_target_properties(CachePerf	PROPERTIES FOLDER "Examples/Common")
 
-	# Download and unpack googletest at configure time
-	configure_file(${CMAKE_CURRENT_LIST_DIR}/CMakeLists.txt.in googletest-download/CMakeLists.txt)
-	execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-		RESULT_VARIABLE result
-		WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download)
-	if(result)
-		message(FATAL_ERROR "-- CMake step for googletest failed: ${result}")
-	endif()
-	execute_process(COMMAND ${CMAKE_COMMAND} --build .
-		RESULT_VARIABLE result
-		WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download)
-	if(result)
-		message(FATAL_ERROR "-- Build step for googletest failed: ${result}")
-	endif()
-
-	# Prevent overriding the parent project's compiler/linker
-	# settings on Windows
+	# Install googletest
+	include(FetchContent)
+	FetchContent_Declare(googletest URL https://github.com/google/googletest/archive/58d77fa8070e8cec2dc1ed015d66b454c8d78850.zip) # release-1.12.1
+	# For Windows: Prevent overriding the parent project's compiler/linker settings
 	set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-
-	# Add googletest directly to our build. This defines
-	# the gtest and gtest_main targets.
-	add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
-		${CMAKE_CURRENT_BINARY_DIR}/googletest-build
-		EXCLUDE_FROM_ALL)
-
-	# The gtest/gtest_main targets carry header search path
-	# dependencies automatically when using CMake 2.8.11 or
-	# later. Otherwise we have to add them here ourselves.
-	if (CMAKE_VERSION VERSION_LESS 2.8.11)
-		include_directories("${gtest_SOURCE_DIR}/include")
-	endif()
-
-	include(GoogleTest)
+	FetchContent_MakeAvailable(googletest)
 endif()
 
 if(FIFTYONE_COMMON_CXX_BUILD_TESTING)
@@ -239,8 +212,9 @@ if(FIFTYONE_COMMON_CXX_BUILD_TESTING)
 		add_compile_definitions(_FILE_OFFSET_BITS=64)
 	endif ()
 
+	include(GoogleTest)
 	gtest_discover_tests(CommonTests PROPERTIES TEST_DISCOVERY_TIMEOUT 600 DISCOVERY_MODE PRE_TEST)
-	set_target_properties(CommonTests PROPERTIES FOLDER "Tests") 
+	set_target_properties(CommonTests PROPERTIES FOLDER "Tests")
 
 	if (CMAKE_COMPILER_IS_GNUCC)
 		target_compile_options(CommonTests PRIVATE "-Wall" "-Werror" "-Wno-unused-variable" "-Wno-unused-result" "-Wno-unused-but-set-variable")
