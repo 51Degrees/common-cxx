@@ -176,6 +176,7 @@ if(BUILD_TESTING)
 	# For Windows: Prevent overriding the parent project's compiler/linker settings
 	set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 	FetchContent_MakeAvailable(googletest)
+	include(GoogleTest)
 endif()
 
 if(FIFTYONE_COMMON_CXX_BUILD_TESTING)
@@ -212,7 +213,6 @@ if(FIFTYONE_COMMON_CXX_BUILD_TESTING)
 		add_compile_definitions(_FILE_OFFSET_BITS=64)
 	endif ()
 
-	include(GoogleTest)
 	gtest_discover_tests(CommonTests PROPERTIES TEST_DISCOVERY_TIMEOUT 600 DISCOVERY_MODE PRE_TEST)
 	set_target_properties(CommonTests PROPERTIES FOLDER "Tests")
 
