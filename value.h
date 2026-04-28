@@ -82,8 +82,10 @@ typedef struct fiftyoneDegrees_value_t {
 	const int16_t propertyIndex; /**< Index of the property the value relates to */
 	const int32_t nameOffset; /**< The offset in the strings structure to the 
 	                              value name */
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
 	const int32_t descriptionOffset; /**< The offset in the strings structure to
 	                                     the value description */
+#endif
 	const int32_t urlOffsetOrWeight; /**< The offset in the strings structure to
 	                                     the value URL, or a masked weight if
 	                                     upper 2 bytes == 0xFF00 (i.e. value

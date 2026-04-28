@@ -40,6 +40,14 @@ uint32_t fiftyoneDegreesComponentGetDefaultProfileId(
 	fiftyoneDegreesCollection *profiles,
 	fiftyoneDegreesComponent *component,
 	fiftyoneDegreesException *exception) {
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+#ifdef _MSC_VER
+	UNREFERENCED_PARAMETER(profiles);
+	UNREFERENCED_PARAMETER(component);
+#endif
+	EXCEPTION_SET(NOT_IMPLEMENTED)
+	return 0;
+#else
 	uint32_t profileId = 0;
 	Item profileItem;
 	Profile *profile;
@@ -58,6 +66,7 @@ uint32_t fiftyoneDegreesComponentGetDefaultProfileId(
 		COLLECTION_RELEASE(profiles, &profileItem);
 	}
 	return profileId;
+#endif
 }
 
 const fiftyoneDegreesString* fiftyoneDegreesComponentGetName(

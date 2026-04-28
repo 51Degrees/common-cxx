@@ -27,6 +27,12 @@
 
 MAP_TYPE(Collection)
 
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+#define NULL_PROFILE ((Profile){0, 0})
+#else
+#define NULL_PROFILE ((Profile){0, 0, 0})
+#endif
+
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 uint32_t fiftyoneDegreesProfileGetFinalSize(
 	const void *initial,
@@ -87,6 +93,15 @@ static int compareProfileIdIndirect(
 	UNREFERENCED_PARAMETER(key);
 	UNREFERENCED_PARAMETER(exception);
 #	endif
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+#ifdef _MSC_VER
+	UNREFERENCED_PARAMETER(searchState);
+	UNREFERENCED_PARAMETER(profileOffsetItem);
+	UNREFERENCED_PARAMETER(key);
+#endif
+	EXCEPTION_SET(NOT_IMPLEMENTED);
+	return -1;
+#else
 	const IndirectProfileSearch * const search = (IndirectProfileSearch*)searchState;
 	const uint32_t profileOffsetValue = *(uint32_t*)profileOffsetItem->data.ptr;
 	const CollectionKey profileKey = {
@@ -107,6 +122,7 @@ static int compareProfileIdIndirect(
 		COLLECTION_RELEASE(search->profiles, search->outProfileItem);
 	}
 	return result;
+#endif
 }
 
 static int compareValueToProperty(const void *p, const void *v) {
@@ -222,6 +238,15 @@ uint32_t* fiftyoneDegreesProfileGetOffsetForProfileId(
 	const uint32_t profileId,
 	uint32_t *profileOffset,
 	fiftyoneDegreesException *exception) {
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+#ifdef _MSC_VER
+	UNREFERENCED_PARAMETER(profileOffsets);
+	UNREFERENCED_PARAMETER(profileId);
+	UNREFERENCED_PARAMETER(profileOffset);
+#endif
+	EXCEPTION_SET(NOT_IMPLEMENTED);
+	return NULL;
+#else
 	long index;
 	Item profileOffsetItem;
 	DataReset(&profileOffsetItem.data);
@@ -258,6 +283,7 @@ uint32_t* fiftyoneDegreesProfileGetOffsetForProfileId(
 	}
 
 	return profileOffset;
+#endif
 }
 
 Profile * fiftyoneDegreesProfileGetByProfileIdIndirect(
@@ -266,6 +292,16 @@ Profile * fiftyoneDegreesProfileGetByProfileIdIndirect(
 	const uint32_t profileId,
 	fiftyoneDegreesCollectionItem *outProfileItem,
 	fiftyoneDegreesException * const exception) {
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+#ifdef _MSC_VER
+	UNREFERENCED_PARAMETER(profileOffsets);
+	UNREFERENCED_PARAMETER(profiles);
+	UNREFERENCED_PARAMETER(profileId);
+	UNREFERENCED_PARAMETER(outProfileItem);
+#endif
+	EXCEPTION_SET(NOT_IMPLEMENTED);
+	return NULL;
+#else
 	long index;
 	Item profileOffsetItem;
 	DataReset(&profileOffsetItem.data);
@@ -305,6 +341,7 @@ Profile * fiftyoneDegreesProfileGetByProfileIdIndirect(
 	}
 
 	return result;
+#endif
 }
 
 fiftyoneDegreesProfile* fiftyoneDegreesProfileGetByProfileId(
@@ -313,6 +350,16 @@ fiftyoneDegreesProfile* fiftyoneDegreesProfileGetByProfileId(
 	const uint32_t profileId,
 	fiftyoneDegreesCollectionItem *item,
 	fiftyoneDegreesException *exception) {
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+#ifdef _MSC_VER
+	UNREFERENCED_PARAMETER(profileOffsets);
+	UNREFERENCED_PARAMETER(profiles);
+	UNREFERENCED_PARAMETER(profileId);
+	UNREFERENCED_PARAMETER(item);
+#endif
+	EXCEPTION_SET(NOT_IMPLEMENTED);
+	return NULL;
+#else
 	uint32_t profileOffset;
 	Profile* profile = NULL;
 	if (fiftyoneDegreesProfileGetOffsetForProfileId(
@@ -327,6 +374,7 @@ fiftyoneDegreesProfile* fiftyoneDegreesProfileGetByProfileId(
 			exception);
 	}
 	return profile;
+#endif
 }
 
 fiftyoneDegreesProfile* fiftyoneDegreesProfileGetByIndex(
@@ -372,7 +420,8 @@ void* fiftyoneDegreesProfileReadFromFile(
 	const CollectionKey * const key,
 	fiftyoneDegreesData *data,
 	fiftyoneDegreesException *exception) {
-	Profile profile = { 0, 0, 0 };
+
+	Profile profile = NULL_PROFILE;
 	return CollectionReadFileVariable(
 		file,
 		data,
@@ -416,6 +465,19 @@ uint32_t fiftyoneDegreesProfileIterateValuesForPropertyWithIndex(
 	void* state,
 	fiftyoneDegreesProfileIterateMethod callback,
 	fiftyoneDegreesException* exception) {
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+#ifdef _MSC_VER
+	UNREFERENCED_PARAMETER(values);
+	UNREFERENCED_PARAMETER(index);
+	UNREFERENCED_PARAMETER(availablePropertyIndex);
+	UNREFERENCED_PARAMETER(profile);
+	UNREFERENCED_PARAMETER(property);
+	UNREFERENCED_PARAMETER(state);
+	UNREFERENCED_PARAMETER(callback);
+#endif
+	EXCEPTION_SET(NOT_IMPLEMENTED);
+	return 0;
+#else
 	uint32_t i = IndicesPropertyProfileLookup(
 		index,
 		profile->profileId,
@@ -432,6 +494,7 @@ uint32_t fiftyoneDegreesProfileIterateValuesForPropertyWithIndex(
 			exception);
 	}
 	return 0;
+#endif
 }
 
 uint32_t fiftyoneDegreesProfileIterateProfilesForPropertyAndValue(

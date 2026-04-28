@@ -47,6 +47,15 @@ static void addProfileValuesMethod(
 	fiftyoneDegreesCollection* values, // collection of values
 	Profile* profile, 
 	Exception* exception) {
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+#ifdef _MSC_VER
+	UNREFERENCED_PARAMETER(index);
+	UNREFERENCED_PARAMETER(propertyIndexes);
+	UNREFERENCED_PARAMETER(values);
+	UNREFERENCED_PARAMETER(profile);
+#endif
+	EXCEPTION_SET(NOT_IMPLEMENTED);
+#else
 	uint32_t valueIndex;
 	Item valueItem; // The current value memory
 	Value* value; // The current value pointer
@@ -93,6 +102,7 @@ static void addProfileValuesMethod(
 			COLLECTION_RELEASE(values, &valueItem);
 		}
 	}
+#endif
 }
 
 static void iterateProfiles(

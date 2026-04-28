@@ -89,7 +89,9 @@
 typedef struct fiftyoneDegrees_profile_t {
 	const byte componentIndex; /**< The index of the component the profile
 	                               relates to */
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
 	const uint32_t profileId; /**< Unique id of the profile */
+#endif
 	const uint32_t valueCount; /**< The number of values within the profile */
 } fiftyoneDegreesProfile;
 #pragma pack(pop)
