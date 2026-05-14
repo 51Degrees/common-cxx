@@ -135,6 +135,8 @@ static StatusMessage messages[] = {
     { FILE_TOO_LARGE, "File size exceeds malloc capabilities."},
     { UNKNOWN_GEOMETRY, "Unsupported geometry type found in WKB."},
     { RESERVED_GEOMETRY, "Geometry type found in WKB is abstract or reserved."},
+	{ NOT_IMPLEMENTED, "The method is not implemented. This is usually because "
+		"a compile flag has been set which removes the functionality."},
 };
 
 static char defaultMessage[] = "Status code %i does not have any message text.";

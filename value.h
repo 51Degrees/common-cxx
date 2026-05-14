@@ -83,6 +83,7 @@ typedef struct fiftyoneDegrees_value_t {
 	const int32_t nameOffset; /**< The offset in the strings structure to the 
 	                              value name */
 #ifndef FIFTYONE_DEGREES_REDUCED_FILE
+	// Descriptions are not included in reduced size data files.
 	const int32_t descriptionOffset; /**< The offset in the strings structure to
 	                                     the value description */
 #endif

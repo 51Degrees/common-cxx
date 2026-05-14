@@ -48,6 +48,8 @@ static void addProfileValuesMethod(
 	Profile* profile, 
 	Exception* exception) {
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
+	// A reduced size data file does not contain profile ids, so this method
+	// cannot be implemented.
 #ifdef _MSC_VER
 	UNREFERENCED_PARAMETER(index);
 	UNREFERENCED_PARAMETER(propertyIndexes);

@@ -90,8 +90,11 @@ typedef struct fiftyoneDegrees_profile_t {
 	const byte componentIndex; /**< The index of the component the profile
 	                               relates to */
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
+	// In a reduced size data file, there is no profile id, and the value count
+	// is written as 2 bytes.
 	const uint16_t valueCount; /**< The number of values within the profile */
 #else
+	// Full size data file contains a profile id, and 32 bit value count.
 	const uint32_t profileId; /**< Unique id of the profile */
 	const uint32_t valueCount; /**< The number of values within the profile */
 #endif

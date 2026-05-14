@@ -99,6 +99,8 @@ const String* fiftyoneDegreesValueGetDescription(
 	CollectionItem *item,
 	Exception *exception) {
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
+	// A reduced size data file does not contain value descriptions, so this
+	// method cannot be implemented.
 #ifdef _MSC_VER
 	UNREFERENCED_PARAMETER(strings);
 	UNREFERENCED_PARAMETER(value);

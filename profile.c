@@ -28,8 +28,10 @@
 MAP_TYPE(Collection)
 
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
+// Reduced size default profile without profile id.
 #define NULL_PROFILE ((Profile){0, 0})
 #else
+// Full default profile with profile id.
 #define NULL_PROFILE ((Profile){0, 0, 0})
 #endif
 
@@ -94,6 +96,8 @@ static int compareProfileIdIndirect(
 	UNREFERENCED_PARAMETER(exception);
 #	endif
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
+	// A reduced size data file does not contain profile ids, so this method
+	// cannot be implemented.
 #ifdef _MSC_VER
 	UNREFERENCED_PARAMETER(searchState);
 	UNREFERENCED_PARAMETER(profileOffsetItem);
@@ -239,6 +243,8 @@ uint32_t* fiftyoneDegreesProfileGetOffsetForProfileId(
 	uint32_t *profileOffset,
 	fiftyoneDegreesException *exception) {
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
+	// A reduced size data file does not contain profile ids, so this method
+	// cannot be implemented.
 #ifdef _MSC_VER
 	UNREFERENCED_PARAMETER(profileOffsets);
 	UNREFERENCED_PARAMETER(profileId);
@@ -293,6 +299,8 @@ Profile * fiftyoneDegreesProfileGetByProfileIdIndirect(
 	fiftyoneDegreesCollectionItem *outProfileItem,
 	fiftyoneDegreesException * const exception) {
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
+	// A reduced size data file does not contain profile ids, so this method
+	// cannot be implemented.
 #ifdef _MSC_VER
 	UNREFERENCED_PARAMETER(profileOffsets);
 	UNREFERENCED_PARAMETER(profiles);
@@ -351,6 +359,8 @@ fiftyoneDegreesProfile* fiftyoneDegreesProfileGetByProfileId(
 	fiftyoneDegreesCollectionItem *item,
 	fiftyoneDegreesException *exception) {
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
+	// A reduced size data file does not contain profile ids, so this method
+	// cannot be implemented.
 #ifdef _MSC_VER
 	UNREFERENCED_PARAMETER(profileOffsets);
 	UNREFERENCED_PARAMETER(profiles);
@@ -466,6 +476,8 @@ uint32_t fiftyoneDegreesProfileIterateValuesForPropertyWithIndex(
 	fiftyoneDegreesProfileIterateMethod callback,
 	fiftyoneDegreesException* exception) {
 #ifdef FIFTYONE_DEGREES_REDUCED_FILE
+	// A reduced size data file does not contain the indices property profile
+	// lookup, so this method cannot be implemented.
 #ifdef _MSC_VER
 	UNREFERENCED_PARAMETER(values);
 	UNREFERENCED_PARAMETER(index);
