@@ -44,6 +44,7 @@ public:
     VariableSizeCollection(const std::vector<T>& values);
     ~VariableSizeCollection();
     variableSizeCollectionState* getState();
+    T* getItem(uint32_t index);
 
 private:
     variableSizeCollectionState state;
@@ -93,6 +94,12 @@ VariableSizeCollection<T>::VariableSizeCollection(const std::vector<T> &values) 
 template<typename T>
 variableSizeCollectionState* VariableSizeCollection<T>::getState() {
     return &state;
+}
+
+template<typename T>
+T* VariableSizeCollection<T>::getItem(uint32_t index) {
+    	assert(index < state.count);
+	return (T*)((byte*)state.data + sizeof(uint32_t) + state.offsets[index]);
 }
 
 #endif /* VariableSizeCollection_hpp */

@@ -109,7 +109,9 @@ typedef struct fiftyoneDegrees_profile_t {
  */
 #pragma pack(push, 4)
 typedef struct fiftyoneDegrees_profile_offset_t {
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
 	const uint32_t profileId; /**< The unique Id of the profile */
+#endif
 	const uint32_t offset; /**< Offset to the profile in the profiles structure */
 } fiftyoneDegreesProfileOffset;
 #pragma pack(pop)

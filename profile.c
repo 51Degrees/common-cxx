@@ -73,11 +73,22 @@ static int compareProfileId(
 	UNREFERENCED_PARAMETER(key);
 	UNREFERENCED_PARAMETER(exception);
 #	endif
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+	// A reduced size data file does not contain profile ids, so this method
+	// cannot be implemented.
+#ifdef _MSC_VER
+	UNREFERENCED_PARAMETER(profileId);
+	UNREFERENCED_PARAMETER(item);
+#endif
+	EXCEPTION_SET(NOT_IMPLEMENTED);
+	return -1;
+#else
 	const unsigned int a = ((ProfileOffset*)item->data.ptr)->profileId;
 	const unsigned int b = *(uint32_t*)profileId;
 	if (a < b) return -1;
 	if (a > b) return 1;
 	return 0;
+#endif
 }
 
 typedef struct {
