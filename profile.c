@@ -691,7 +691,7 @@ uint32_t fiftyoneDegreesProfileIterateValueIndexes(
 	DataReset(&valueItem.data);
 
 	// For all the possible values associated with the profile.
-	for (uint32_t i = 0; cont && i < profile->valueCount; i++) {
+	for (ProfileValuesCountType i = 0; cont && i < profile->valueCount; i++) {
 
 		// Get the value to check if it relates to a required property.
 		valueIndex = *(valueIndexes + i);
