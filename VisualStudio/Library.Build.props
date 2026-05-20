@@ -146,7 +146,7 @@
   <!-- Large data file support configuration -->
   <ItemDefinitionGroup Condition="$(Configuration.Contains('LargeDataFiles'))">
     <ClCompile>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT;FIFTYONE_DEGREES_REDUCED_FILE</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <!-- Common properties for all configurations -->

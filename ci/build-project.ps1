@@ -32,6 +32,7 @@ if ($BuildMethod -eq "cmake") {
         -BuildMethod $BuildMethod `
         -ExtraArgs @(
             "-DLargeDataFileSupport:BOOL=ON"
+            "-DReducedFile:BOOL=ON"
         )
         
 } elseif ($BuildMethod -eq "msbuild") {
