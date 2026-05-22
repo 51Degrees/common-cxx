@@ -81,6 +81,17 @@
 #include "common.h"
 #include "indices.h"
 
+typedef
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+// In a reduced size data file, there is no profile id, and the value count
+// is written as 2 bytes.
+uint16_t
+#else
+// Full size data file contains a profile id, and 32 bit value count.
+uint32_t
+#endif
+fiftyoneDegreesProfileValuesCountType; /**< Type for fiftyoneDegreesProfile::valueCount */
+
 /**
  * Encapsulates a profile stored within a data set. A profile pertains to a
  * specific set of values for the properties relating to a single component.
@@ -89,15 +100,12 @@
 typedef struct fiftyoneDegrees_profile_t {
 	const byte componentIndex; /**< The index of the component the profile
 	                               relates to */
-#ifdef FIFTYONE_DEGREES_REDUCED_FILE
-	// In a reduced size data file, there is no profile id, and the value count
-	// is written as 2 bytes.
-	const uint16_t valueCount; /**< The number of values within the profile */
-#else
-	// Full size data file contains a profile id, and 32 bit value count.
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+	// In a reduced size data file, there is no profile id.
+	// Full size data file contains a profile id.
 	const uint32_t profileId; /**< Unique id of the profile */
-	const uint32_t valueCount; /**< The number of values within the profile */
 #endif
+	const fiftyoneDegreesProfileValuesCountType valueCount; /**< The number of values within the profile */
 } fiftyoneDegreesProfile;
 #pragma pack(pop)
 
