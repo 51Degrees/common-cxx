@@ -47,6 +47,17 @@ static void addProfileValuesMethod(
 	fiftyoneDegreesCollection* values, // collection of values
 	Profile* profile, 
 	Exception* exception) {
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+	// A reduced size data file does not contain profile ids, so this method
+	// cannot be implemented.
+#ifdef _MSC_VER
+	UNREFERENCED_PARAMETER(index);
+	UNREFERENCED_PARAMETER(propertyIndexes);
+	UNREFERENCED_PARAMETER(values);
+	UNREFERENCED_PARAMETER(profile);
+#endif
+	EXCEPTION_SET(NOT_IMPLEMENTED);
+#else
 	uint32_t valueIndex;
 	Item valueItem; // The current value memory
 	Value* value; // The current value pointer
@@ -93,6 +104,7 @@ static void addProfileValuesMethod(
 			COLLECTION_RELEASE(values, &valueItem);
 		}
 	}
+#endif
 }
 
 static void iterateProfiles(
@@ -152,6 +164,16 @@ static uint32_t getProfileId(
 	fiftyoneDegreesCollection* profileOffsets,
 	uint32_t index,
 	Exception* exception) {
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+	// A reduced size data file does not contain profile ids, so this method
+	// cannot be implemented.
+#ifdef _MSC_VER
+	UNREFERENCED_PARAMETER(profileOffsets);
+	UNREFERENCED_PARAMETER(index);
+#endif
+	EXCEPTION_SET(NOT_IMPLEMENTED);
+	return 0;
+#else
 	uint32_t profileId = 0;
 	ProfileOffset* profileOffset; // The profile offset pointer
 	Item profileOffsetItem; // The profile offset memory
@@ -170,6 +192,7 @@ static uint32_t getProfileId(
 		COLLECTION_RELEASE(profileOffsets, &profileOffsetItem);
 	}
 	return profileId;
+#endif
 }
 
 static int comparePropertyIndexes(const void* a, const void* b) {

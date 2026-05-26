@@ -61,8 +61,9 @@ public:
     int propertyIndexFromPropertyName(string &propertyName);
     void indicesLookup(std::vector<std::string> &propertyNames);
     void iterateValueIndicesForAvailableProperties(std::vector<std::string> &propertyNames);
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
     void iterateValueIndicesForEachAvailableProperty(std::vector<std::string> &propertyNames);
- 
+#endif
     fiftyoneDegreesCollectionItem item;
     
     StringCollection *stringsCollectionHelper;
@@ -164,7 +165,9 @@ void ProfileTests::CreateObjects() {
             values.push_back({
                 (int16_t) i, // propertyIndex
                 (int32_t) offsets[valueNameIdx], // nameOffset
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
                 (int32_t) offsets[valueNameIdx], // descriptionOffset - pointing to the same location as name for now
+#endif
                 (int32_t) offsets[valueNameIdx], // urlOffset - pointing to the same location as name for now
             });
         }
@@ -204,7 +207,9 @@ void ProfileTests::CreateObjects() {
     for (int i=0; i<N_PROFILES;++i) {
         ProfileContainer cont = {{
             0, //componentIndex
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
             profileIdFromProfileIndex(i), //profileId
+#endif
             N_PROPERTIES
         }, {}} ;
         for (int j=0;j<N_PROPERTIES;++j) {
@@ -224,7 +229,9 @@ void ProfileTests::CreateObjects() {
     std::vector<fiftyoneDegreesProfileOffset> tempProfileOffsets;
     for (int i=0;i<N_PROFILES;++i) {
         tempProfileOffsets.push_back({
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
             tempProfiles[i].profile.profileId,
+#endif
             profileOffsets[i]
         });
     }
@@ -265,13 +272,18 @@ void ProfileTests::assessValue(const fiftyoneDegreesValue *value, int i) {
     EXPECT_STREQ(&fiftyoneDegreesValueGetName(stringsCollection, value, &item, exception)->value, strings[valueNameIdx]);
     COLLECTION_RELEASE(item.collection, &item);
 
-    EXPECT_STREQ(&fiftyoneDegreesValueGetDescription(stringsCollection, value, &item, exception)->value, strings[valueNameIdx]);
+    const String* description = fiftyoneDegreesValueGetDescription(stringsCollection, value, &item, exception);
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+    EXPECT_STREQ(&description->value, strings[valueNameIdx]);
     COLLECTION_RELEASE(item.collection, &item);
-    
+#else
+    EXPECT_EQ(description, nullptr);
+    ASSERT_TRUE(EXCEPTION_CHECK(NOT_IMPLEMENTED));
+    EXCEPTION_CLEAR;
+#endif
+
     EXPECT_STREQ(&fiftyoneDegreesValueGetUrl(stringsCollection, value, &item, exception)->value, strings[valueNameIdx]);
     COLLECTION_RELEASE(item.collection, &item);
-    
-    
 }
 
 TEST_F(ProfileTests, Values) {
@@ -300,17 +312,36 @@ TEST_F(ProfileTests, Values) {
     }
 }
 
+/**
+ * Compare two profiles for equality. All fields in the profiles are compared
+ * using the EXPECT_EQ macro. The value arrays are compared element by element.
+ */
+void compareProfiles(ProfileContainer* expected, Profile* actual) {
+    EXPECT_EQ(expected->profile.componentIndex, actual->componentIndex);
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+    EXPECT_EQ(expected->profile.profileId, actual->profileId);
+#endif
+    EXPECT_EQ(N_PROPERTIES, actual->valueCount);
+    const uint32_t* actualValues = (const uint32_t*)(actual + 1);
+    for (int i=0; i<N_PROPERTIES; i++) {
+		EXPECT_EQ(expected->valueIndices[i], actualValues[i]);
+	}
+}
+
 TEST_F(ProfileTests, ProfileGetBy) {
     EXCEPTION_CREATE
     for (int i=0; i<N_PROFILES;++i) {
+        ProfileContainer* expected = profilesCollectionHelper->getItem(i);
+        Profile* profile;
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
         uint32_t id = profileIdFromProfileIndex(i);
-        fiftyoneDegreesProfile *profile = fiftyoneDegreesProfileGetByProfileId(profileOffsetsCollection, profilesCollection, id, &item, exception);
+        profile = fiftyoneDegreesProfileGetByProfileId(profileOffsetsCollection, profilesCollection, id, &item, exception);
         COLLECTION_RELEASE(item.collection, &item);
-        EXPECT_EQ(profile->profileId, id);
-        
+        compareProfiles(expected, profile);
+#endif
         profile = fiftyoneDegreesProfileGetByIndex(profileOffsetsCollection, profilesCollection, i, &item, exception);
         COLLECTION_RELEASE(item.collection, &item);
-        EXPECT_EQ(profile->profileId, id);
+        compareProfiles(expected, profile);
     }
 }
 
@@ -422,24 +453,24 @@ TEST_F(ProfileTests, profileIterateForPropertyAndValue) {
     std::vector<fiftyoneDegreesProfile *> profiles;
     EXCEPTION_CREATE
     fiftyoneDegreesProfileIterateProfilesForPropertyAndValue(stringsCollection, propertiesCollection, valuesCollection, profilesCollection, profileOffsetsCollection, "Size", "Enormous", &profiles, iterateProfiles, exception);
-    EXPECT_EQ(profileIndexFromProfileId(profiles[0]->profileId), 0);
+    compareProfiles(profilesCollectionHelper->getItem(0), profiles[0]);
     EXPECT_TRUE(EXCEPTION_OKAY);
     
     profiles.clear();
     fiftyoneDegreesProfileIterateProfilesForPropertyAndValue(stringsCollection, propertiesCollection, valuesCollection, profilesCollection, profileOffsetsCollection, "Position", "Horizontal", &profiles, iterateProfiles, exception);
-    EXPECT_EQ(profileIndexFromProfileId(profiles[0]->profileId), 1);
+    compareProfiles(profilesCollectionHelper->getItem(1), profiles[0]);
     
     profiles.clear();
     fiftyoneDegreesProfileIterateProfilesForPropertyAndValue(stringsCollection, propertiesCollection, valuesCollection, profilesCollection, profileOffsetsCollection, "Material", "Metal", &profiles, iterateProfiles, exception);
-    EXPECT_EQ(profileIndexFromProfileId(profiles[0]->profileId), 2);
+    compareProfiles(profilesCollectionHelper->getItem(2), profiles[0]);
     
     profiles.clear();
     fiftyoneDegreesProfileIterateProfilesForPropertyAndValue(stringsCollection, propertiesCollection, valuesCollection, profilesCollection, profileOffsetsCollection, "Brightness", "Glowing", &profiles, iterateProfiles, exception);
-    EXPECT_EQ(profileIndexFromProfileId(profiles[0]->profileId), 3);
+    compareProfiles(profilesCollectionHelper->getItem(3), profiles[0]);
     
     profiles.clear();
     fiftyoneDegreesProfileIterateProfilesForPropertyAndValue(stringsCollection, propertiesCollection, valuesCollection, profilesCollection, profileOffsetsCollection, "Weight", "Moderate", &profiles, iterateProfiles, exception);
-    EXPECT_EQ(profileIndexFromProfileId(profiles[0]->profileId), 4);
+    compareProfiles(profilesCollectionHelper->getItem(4), profiles[0]);
 }
 
 void ProfileTests::indicesLookup(std::vector<std::string> &propertyNames) {
@@ -469,6 +500,7 @@ void ProfileTests::indicesLookup(std::vector<std::string> &propertyNames) {
     fiftyoneDegreesFree(availableProperties);
 }
 
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
 TEST_F(ProfileTests, indicesLookup) {
     std::vector<std::string> propertyNamesNonRepetitive {"Volume","Position","Texture","Flexibility","Weight", "Brightness"};
     std::vector<std::string> propertyNamesRepetitive {"Material","Position","Shape","Shape","Weight"};
@@ -477,6 +509,7 @@ TEST_F(ProfileTests, indicesLookup) {
     //repetitive are not supported:
     //indicesLookup(propertyNamesRepetitive);
 }
+#endif
 
 bool collectValues(void *state, fiftyoneDegreesCollectionItem *item) {
     std::vector<fiftyoneDegreesValue *> *values = (std::vector<fiftyoneDegreesValue *> *)state;
@@ -484,6 +517,7 @@ bool collectValues(void *state, fiftyoneDegreesCollectionItem *item) {
     return true;
 }
 
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
 void ProfileTests::iterateValueIndicesForEachAvailableProperty(std::vector<std::string> &propertyNames) {
     EXCEPTION_CREATE
     fiftyoneDegreesPropertiesAvailable *availableProperties = createAvailableProperties(propertyNames);
@@ -526,6 +560,7 @@ TEST_F(ProfileTests, iterateValueForPropertyWithIndex) {
     std::vector<std::string> propertyNamesNonRepetitive {"Taste","Position","Material","Size","Color", "Temperature"};
     iterateValueIndicesForEachAvailableProperty(propertyNamesNonRepetitive);
 }
+#endif
 
 TEST_F(ProfileTests, unhappyPaths) {
     //NULL profileId
@@ -533,10 +568,17 @@ TEST_F(ProfileTests, unhappyPaths) {
     EXCEPTION_CREATE
     uint32_t *profileOffsetPtr = fiftyoneDegreesProfileGetOffsetForProfileId(profileOffsetsCollection, 0, &profileOffset, exception);
     EXPECT_FALSE(EXCEPTION_OKAY);
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+    EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_NOT_IMPLEMENTED));
+#else
     EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_PROFILE_EMPTY));
+#endif
 
     // non-existent profileId
     EXCEPTION_CLEAR
     profileOffsetPtr = fiftyoneDegreesProfileGetOffsetForProfileId(profileOffsetsCollection, 20003, &profileOffset, exception);
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+    EXPECT_TRUE(FIFTYONE_DEGREES_EXCEPTION_CHECK(FIFTYONE_DEGREES_STATUS_NOT_IMPLEMENTED));
+#endif
     EXPECT_EQ(profileOffsetPtr, (uint32_t *) NULL);
 }

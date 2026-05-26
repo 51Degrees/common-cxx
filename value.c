@@ -98,12 +98,24 @@ const String* fiftyoneDegreesValueGetDescription(
 	const Value *value,
 	CollectionItem *item,
 	Exception *exception) {
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+	// A reduced size data file does not contain value descriptions, so this
+	// method cannot be implemented.
+#ifdef _MSC_VER
+	UNREFERENCED_PARAMETER(strings);
+	UNREFERENCED_PARAMETER(value);
+	UNREFERENCED_PARAMETER(item);
+#endif
+	EXCEPTION_SET(NOT_IMPLEMENTED)
+	return NULL;
+#else
 	return &StoredBinaryValueGet(
 		strings,
 		value->descriptionOffset,
 		FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_STRING, // description is string
 		item,
 		exception)->stringValue;
+#endif
 }
 
 const String* fiftyoneDegreesValueGetUrl(

@@ -95,6 +95,16 @@ The options is enabled using the `FIFTYONE_DEGREES_EXCEPTIONS_DISABLED` compile 
 
 <p style="color:#FF6000">WARNING: When exception handling is disabled, using the functionality in this library incorrectly can result in a segmentation fault instead of an exception being set.<p>
 
+### ReducedFile
+
+A reduced size data file has the following differences:
+- `profileId` is removed from a `fiftyoneDegreesProfile`,
+- `fiftyoneDegreesProfile->valueCount` is 2 bytes instead of 4,
+- `descriptionOffset` is removed from `fiftyoneDegreesValue`.
+
+Enabling this option makes the API compatible with a reduced size 51Degrees data file. A few methods 
+which use the removed fields cannot be implemented with this option, so an exception is set.
+
 # Tests
 
 All unit, integration, and performance tests are built using the [Google test framework](https://github.com/google/googletest).

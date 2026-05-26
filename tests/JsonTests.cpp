@@ -86,7 +86,9 @@ void JsonTests::CreateObjects() {
             values.push_back({
                 (int16_t) i, // propertyIndex
                 (int32_t) offsets[valueNameIdx], // nameOffset
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
                 (int32_t) offsets[valueNameIdx], // descriptionOffset - pointing to the same location as name for now
+#endif
                 (int32_t) offsets[valueNameIdx], // urlOffset - pointing to the same location as name for now
             });
         }
