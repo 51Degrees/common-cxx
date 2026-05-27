@@ -13,5 +13,5 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Schedule version/4.5
-        run: gh workflow run nightly-pipeline.yml --repo '${{ github.repository }}' --ref version/4.5
+      - name: Schedule main
+        run: gh workflow run nightly-pipeline.yml --repo '${{ github.repository }}' --ref main
