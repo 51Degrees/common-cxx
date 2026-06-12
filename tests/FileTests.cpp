@@ -25,6 +25,10 @@
 #include <stdio.h>
 #include <sys/stat.h>
 
+#ifdef _MSC_VER
+#include <share.h>
+#endif
+
 #include "../exceptions.h"
 #include "../file.h"
 #include "../snprintf.h"
@@ -487,6 +491,40 @@ TEST_F(File, FileCopy) {
 	fclose(copy);
 	fclose(orig);
 	removeFile(copiedFileName);
+}
+
+/**
+ * Check that a file which is already open elsewhere with write access can
+ * still be opened for reading without an error. This reproduces the scenario
+ * in issue #118 where a data file is being generated/written by another
+ * process (using read/write access while sharing read access) and needs to be
+ * read concurrently. Before the fix the Windows implementation used fopen_s,
+ * which opens files without sharing and therefore failed with a permission
+ * error in this case.
+ */
+TEST_F(File, OpenWhileInUse) {
+	// Open the file with write access while permitting others to read it.
+	// This mirrors a writer using FileAccess.ReadWrite with FileShare.Read.
+	FILE *writer;
+#ifdef _MSC_VER
+	writer = _fsopen(fileName, "rb+", _SH_DENYNO);
+#else
+	writer = fopen(fileName, "rb+");
+#endif
+	ASSERT_NE((FILE *)NULL, writer) <<
+		"Could not open the file with write access to set up the test.";
+
+	// Now open the same file for reading. This must succeed even though the
+	// file is in use.
+	FILE *reader = NULL;
+	EXPECT_EQ(FIFTYONE_DEGREES_STATUS_SUCCESS,
+		fiftyoneDegreesFileOpen(fileName, &reader)) <<
+		"A file which is already in use could not be opened for reading.";
+
+	if (reader != NULL) {
+		fclose(reader);
+	}
+	fclose(writer);
 }
 
 /**
