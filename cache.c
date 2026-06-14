@@ -265,24 +265,27 @@ static CacheNode *cacheGetNextFree(CacheShard *shard) {
  * free nodes
  */
 static CacheNode* cacheLoad(
-	CacheShard *shard, 
-	const void *key, 
+	CacheShard *shard,
+	const void *key,
+	int64_t keyHash,
 	Exception *exception) {
 	CacheNode *node = cacheGetNextFree(shard);
 	if (node != NULL) {
 		node->activeCount = 1;
 
-		// Load the data into then node setting the valid flag to indicate if 
+		// Load the data into then node setting the valid flag to indicate if
 		// the item was loaded correctly.
 		shard->cache->load(
-			shard->cache->loaderState, 
-			&node->data, 
-			key, 
+			shard->cache->loaderState,
+			&node->data,
+			key,
 			exception);
 
-		// If not exception then add the node to the head of the tree.
+		// If not exception then add the node to the head of the tree. The key
+		// hash was already computed by the caller, so reuse it rather than
+		// invoking the (potentially expensive) hash function a second time.
 		if (EXCEPTION_OKAY) {
-			node->tree.key = shard->cache->hash(key);
+			node->tree.key = keyHash;
 			TreeInsert(&node->tree);
 		}
 	}
@@ -401,8 +404,8 @@ fiftyoneDegreesCacheNode* fiftyoneDegreesCacheGet(
 	}
 	else {
 
-		// The key does not exist so load it.
-		node = cacheLoad(shard, key, exception);
+		// The key does not exist so load it, reusing the hash already computed.
+		node = cacheLoad(shard, key, keyHash, exception);
 		cache->misses++;
 	}
 

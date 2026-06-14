@@ -73,26 +73,41 @@ const fiftyoneDegreesString* fiftyoneDegreesStringGet(
 		exception);
 }
 
+/**
+ * Lower cases a single ASCII byte branchlessly. 'A'-'Z' are mapped to 'a'-'z';
+ * every other byte value is returned unchanged. Unlike tolower() this is
+ * locale independent, performs no table lookup, and is well defined for bytes
+ * >= 0x80 (a negative signed char passed to tolower() is undefined behaviour).
+ * The (unsigned)(c - 'A') < 26u test is true only for the 26 upper case bytes.
+ */
+static int toLowerAscii(unsigned char c) {
+	return (int)c + (((unsigned)(c - 'A') < 26u) ? 32 : 0);
+}
+
 int fiftyoneDegreesStringCompare(const char *a, const char *b) {
-	for (; *a != '\0' && *b != '\0'; a++, b++) {
-		int d = tolower(*a) - tolower(*b);
+	const unsigned char *ua = (const unsigned char*)a;
+	const unsigned char *ub = (const unsigned char*)b;
+	for (; *ua != '\0' && *ub != '\0'; ua++, ub++) {
+		int d = toLowerAscii(*ua) - toLowerAscii(*ub);
 		if (d != 0) {
 			return d;
 		}
 	}
-	if (*a == '\0' && *b != '\0') return -1;
-	if (*a != '\0' && *b == '\0') return 1;
-	assert(*a == '\0' && *b == '\0');
+	if (*ua == '\0' && *ub != '\0') return -1;
+	if (*ua != '\0' && *ub == '\0') return 1;
+	assert(*ua == '\0' && *ub == '\0');
 	return 0;
 }
 
 int fiftyoneDegreesStringCompareLength(
-	char const *a, 
-	char const *b, 
+	char const *a,
+	char const *b,
 	size_t length) {
+	const unsigned char *ua = (const unsigned char*)a;
+	const unsigned char *ub = (const unsigned char*)b;
 	size_t i;
-	for (i = 0; i < length; a++, b++, i++) {
-		int d = tolower(*a) - tolower(*b);
+	for (i = 0; i < length; ua++, ub++, i++) {
+		int d = toLowerAscii(*ua) - toLowerAscii(*ub);
 		if (d != 0) {
 			return d;
 		}
