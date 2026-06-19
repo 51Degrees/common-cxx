@@ -203,3 +203,50 @@ TEST_F(ValueTests, PointerType) {
 
 	delete expected;
 }
+
+/**
+ * Check that every read-only method can be called on a const Value. This guards
+ * against a regression of the reported issue where the getters were missing the
+ * const qualifier, so code such as
+ *     Value<string> const v = results->getValueAsString(index);
+ *     if (v.hasValue()) { ... }
+ * failed to compile. This test will not compile if any read method loses its
+ * const qualifier.
+ */
+TEST_F(ValueTests, ConstAccessWithValue) {
+	int expected = 51;
+	Value<int> value;
+	value.setValue(expected);
+
+	const Value<int> &constValue = value;
+
+	EXPECT_TRUE(constValue.hasValue()) <<
+		L"hasValue() should be callable on a const Value and return true.";
+	EXPECT_EQ(expected, constValue.getValue()) <<
+		L"getValue() should be callable on a const Value and return the value.";
+	EXPECT_EQ(expected, *constValue) <<
+		L"operator*() should be callable on a const Value and return the value.";
+}
+
+/**
+ * Check that the no-value read methods are also callable on a const Value, so
+ * the const path can inspect why a value is missing.
+ */
+TEST_F(ValueTests, ConstAccessNoValue) {
+	const char *expected = "some error message";
+	Value<int> value;
+	value.setNoValueReason(
+		FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_RESULTS,
+		expected);
+
+	const Value<int> &constValue = value;
+
+	EXPECT_FALSE(constValue.hasValue()) <<
+		L"hasValue() should be callable on a const Value and return false.";
+	EXPECT_EQ(
+		FIFTYONE_DEGREES_RESULTS_NO_VALUE_REASON_NO_RESULTS,
+		constValue.getNoValueReason()) <<
+		L"getNoValueReason() should be callable on a const Value.";
+	EXPECT_STREQ(expected, constValue.getNoValueMessage()) <<
+		L"getNoValueMessage() should be callable on a const Value.";
+}

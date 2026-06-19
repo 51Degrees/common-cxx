@@ -97,7 +97,7 @@ namespace FiftyoneDegrees {
 			 * ResultsBase instance.
 			 * @return true if there is a valid value
 			 */
-			bool hasValue() {
+			bool hasValue() const {
 				return hasValueInternal;
 			}
 
@@ -107,7 +107,7 @@ namespace FiftyoneDegrees {
              * message, call getNoValueMessage().
              * @return enum indicating the reason for no valid values
              */
-			fiftyoneDegreesResultsNoValueReason getNoValueReason() {
+			fiftyoneDegreesResultsNoValueReason getNoValueReason() const {
 				return noValueReason;
 			}
 
@@ -116,7 +116,7 @@ namespace FiftyoneDegrees {
 			 * hasValue() returned true will result in undefined behavior.
 			 * @return message explaining the reason for the missing value
 			 */
-			const char* getNoValueMessage() {
+			const char* getNoValueMessage() const {
 				return noValueMessage;
 			}
 
@@ -126,7 +126,7 @@ namespace FiftyoneDegrees {
 			 * exception, the hasValue() method should be checked first.
 			 * @return value
 			 */
-			T getValue() {
+			T getValue() const {
 				if (hasValueInternal) {
 					return value;
 				}
@@ -188,7 +188,7 @@ namespace FiftyoneDegrees {
 			 * exception, the hasValue() method should be checked first.
 			 * @return value
 			 */
-			T operator*() {
+			T operator*() const {
 				return getValue();
 			}
 
