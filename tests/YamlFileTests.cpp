@@ -326,3 +326,137 @@ TEST(YamlFileIteratorTests, NoLimitLastDocEmptyNoEOFNewLine) {
 	};
 	testYamlFileIterator({ false, -1, true, true }, expected);
 }
+
+/*
+ * Write the exact bytes given to a temp file (binary mode, so newlines are not
+ * translated and the caller controls CRLF precisely).
+ */
+static void writeRawFile(const string& path, const string& content) {
+	FILE* fp = fopen(path.c_str(), "wb");
+	if (fp != NULL) {
+		if (!content.empty()) {
+			fwrite(content.data(), 1, content.size(), fp);
+		}
+		fclose(fp);
+	}
+}
+
+/*
+ * Iterate over the given raw file content using a caller supplied read buffer
+ * size. A small buffer forces records to span file blocks, exercising the
+ * block boundary handling.
+ */
+static TestState iterateRaw(const string& content, size_t bufferSize) {
+	string filePath = getFileWithPath("quotefile");
+	writeRawFile(filePath, content);
+
+	vector<char> buffer(bufferSize, 0);
+	char key[8][256];
+	char value[8][256];
+	KeyValuePair pairs[8];
+	for (int i = 0; i < 8; i++) {
+		pairs[i] = { key[i], 256, value[i], 256 };
+	}
+	TestState state;
+	fiftyoneDegreesYamlFileIterateWithLimit(
+		filePath.c_str(),
+		buffer.data(),
+		bufferSize,
+		pairs,
+		8,
+		-1,
+		&state,
+		testCallBack);
+	deleteTestFile(filePath);
+	return state;
+}
+
+/*
+ * Read back the single value from a single "header.X: ..." record.
+ */
+static string valueOf(const string& record) {
+	TestState s = iterateRaw(record, 500);
+	if (s.size() == 1 && s[0].size() == 1) {
+		return s[0][0].value;
+	}
+	return string("<unexpected docs=") + std::to_string(s.size()) + ">";
+}
+
+TEST(YamlFileQuoteTests, DoubleQuoteWrappedSingleQuoteStripped) {
+	ASSERT_EQ(string("'hello world"), valueOf("header.ua: \"'hello world\""));
+}
+
+TEST(YamlFileQuoteTests, DoubleQuoteWrappedLeadingWhitespace) {
+	ASSERT_EQ(string(" 'hello world"), valueOf("header.ua: \" 'hello world\""));
+}
+
+// Check client Hint values are NOT stripped of doublr quotes.
+TEST(YamlFileQuoteTests, ClientHintDoubleQuotesPreserved) {
+	string ch = "\"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"126\"";
+	ASSERT_EQ(ch, valueOf("header.sec-ch-ua: " + ch));
+}
+
+TEST(YamlFileQuoteTests, ClientHintSingleQuoteWrappedUnwrapped) {
+	ASSERT_EQ(string("\"Chromium\";v=\"8\""),
+		valueOf("header.sec-ch-ua: '\"Chromium\";v=\"8\"'"));
+}
+
+TEST(YamlFileQuoteTests, SingleQuoteMidStringUntouched) {
+	ASSERT_EQ(string("hello' world"), valueOf("header.ua: hello' world"));
+}
+TEST(YamlFileQuoteTests, SingleQuoteTrailingUntouched) {
+	ASSERT_EQ(string("hello world'"), valueOf("header.ua: hello world'"));
+}
+
+TEST(YamlFileQuoteTests, SingleQuoteWrappingStillStripped) {
+	ASSERT_EQ(string("hello world"), valueOf("header.ua: 'hello world'"));
+}
+
+// Check that a double-quote wrapped value as the last pair of a document,
+// read with a tiny buffer (so the value spans several file blocks) is still 
+// unwrapped.
+TEST(YamlFileQuoteTests, DoubleQuoteWrappedAcrossBlocks) {
+	TestState s = iterateRaw("header.ua: \"'spanning value\"", 4);
+	ASSERT_EQ((size_t)1, s.size());
+	ASSERT_EQ((size_t)1, s[0].size());
+	ASSERT_EQ(string("'spanning value"), s[0][0].value);
+}
+
+// An empty file is not a document and must yield no pairs.
+TEST(YamlFileDocumentTests, EmptyFileYieldsNoDocuments) {
+	ASSERT_EQ((size_t)0, iterateRaw("", 500).size());
+}
+
+// A file of only blank lines must not emit a phantom empty pair.
+TEST(YamlFileDocumentTests, BlankLinesYieldNoDocuments) {
+	ASSERT_EQ((size_t)0, iterateRaw("\n\n\n", 500).size());
+	ASSERT_EQ((size_t)0, iterateRaw("\r\n\r\n", 500).size());
+}
+
+// A single pair with no trailing newline is returned in full.
+TEST(YamlFileDocumentTests, SinglePairNoTrailingNewLine) {
+	TestState s = iterateRaw("header.a: 1", 500);
+	ASSERT_EQ((size_t)1, s.size());
+	ASSERT_EQ((size_t)1, s[0].size());
+	ASSERT_EQ(string("1"), s[0][0].value);
+}
+
+// The last document is returned even with no terminating separator or newline.
+TEST(YamlFileDocumentTests, LastDocumentReturnedAtEof) {
+	TestState s = iterateRaw("header.a: 1\nheader.b: 2\n---\nheader.c: 3", 500);
+	ASSERT_EQ((size_t)2, s.size());
+	ASSERT_EQ((size_t)2, s[0].size());
+	ASSERT_EQ((size_t)1, s[1].size());
+	ASSERT_EQ(string("3"), s[1][0].value);
+}
+
+// CRLF line endings, read with a tiny buffer, produce the same documents.
+TEST(YamlFileDocumentTests, CrlfWithSmallBuffer) {
+	string content = "header.a: 1\r\nheader.b: 2\r\n---\r\nheader.c: 3";
+	for (size_t bs = 2; bs <= (size_t)8; bs++) {
+		TestState s = iterateRaw(content, bs);
+		ASSERT_EQ((size_t)2, s.size()) << "buffer size " << bs;
+		ASSERT_EQ((size_t)2, s[0].size()) << "buffer size " << bs;
+		ASSERT_EQ((size_t)1, s[1].size()) << "buffer size " << bs;
+	}
+}
