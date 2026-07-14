@@ -22,6 +22,8 @@
 
 #include "indices.h"
 
+#include <string.h>
+
 #include "collectionKeyTypes.h"
 #include "fiftyone.h"
 
@@ -31,41 +33,23 @@ typedef struct map_t {
 	int16_t propertyIndex; // index in the properties collection
 } map;
 
-// Gets the index of the profile id in the property profile index.
-static uint32_t getProfileIdIndex(
-	IndicesPropertyProfile* index, 
-	uint32_t profileId) {
-	return profileId - index->minProfileId;
-}
-
-// Loops through the values associated with the profile setting the index at 
+// Loops through the values associated with the profile setting the index at
 // the position for the property and profile to the first value index from the
-// profile.
+// profile. The base is the index in valueIndexes of the first cell of the row
+// used for the profile.
 static void addProfileValuesMethod(
 	IndicesPropertyProfile* index, // index in use or null if not available
 	map* propertyIndexes, // property indexes in ascending order
 	fiftyoneDegreesCollection* values, // collection of values
-	Profile* profile, 
+	Profile* profile,
+	uint32_t base,
 	Exception* exception) {
-#ifdef FIFTYONE_DEGREES_REDUCED_FILE
-	// A reduced size data file does not contain profile ids, so this method
-	// cannot be implemented.
-#ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(index);
-	UNREFERENCED_PARAMETER(propertyIndexes);
-	UNREFERENCED_PARAMETER(values);
-	UNREFERENCED_PARAMETER(profile);
-#endif
-	EXCEPTION_SET(NOT_IMPLEMENTED);
-#else
 	uint32_t valueIndex;
 	Item valueItem; // The current value memory
 	Value* value; // The current value pointer
 	DataReset(&valueItem.data);
-	
+
 	uint32_t* first = (uint32_t*)(profile + 1); // First value for the profile
-	uint32_t base = getProfileIdIndex(index, profile->profileId) * 
-		index->availablePropertyCount;
 
 	CollectionKey valueKey = {
 		0,
@@ -83,15 +67,15 @@ static void addProfileValuesMethod(
 		value = values->get(values, &valueKey, &valueItem, exception);
 		if (value != NULL && EXCEPTION_OKAY) {
 
-			// If the value doesn't relate to the next property index then 
+			// If the value doesn't relate to the next property index then
 			// move to the next property index.
-			while (p < index->availablePropertyCount && // first check validity 
+			while (p < index->availablePropertyCount && // first check validity
 				// of the subscript and then use it
                 propertyIndexes[p].propertyIndex < value->propertyIndex) {
 				p++;
 			}
 
-			// If the value relates to the next property index being sought 
+			// If the value relates to the next property index being sought
 			// then record the first value in the profile associated with the
 			// property.
 			if (p < index->availablePropertyCount &&
@@ -104,7 +88,15 @@ static void addProfileValuesMethod(
 			COLLECTION_RELEASE(values, &valueItem);
 		}
 	}
-#endif
+}
+
+#ifndef FIFTYONE_DEGREES_REDUCED_FILE
+
+// Gets the index of the profile id in the property profile index.
+static uint32_t getProfileIdIndex(
+	IndicesPropertyProfile* index,
+	uint32_t profileId) {
+	return profileId - index->minProfileId;
 }
 
 static void iterateProfiles(
@@ -128,7 +120,7 @@ static void iterateProfiles(
 		0,
 		CollectionKeyType_Profile,
 	};
-	for (uint32_t i = 0; 
+	for (uint32_t i = 0;
 		i < index->profileCount && EXCEPTION_OKAY;
 		i++) {
 		profileOffsetKey.indexOrOffset.offset = i;
@@ -150,6 +142,8 @@ static void iterateProfiles(
 					propertyIndexes,
 					values,
 					profile,
+					getProfileIdIndex(index, profile->profileId) *
+						index->availablePropertyCount,
 					exception);
 				COLLECTION_RELEASE(profiles, &profileItem);
 			}
@@ -158,22 +152,12 @@ static void iterateProfiles(
 	}
 }
 
-// As the profileOffsets collection is ordered in ascending profile id the 
+// As the profileOffsets collection is ordered in ascending profile id the
 // first and last entries are the min and max available profile ids.
 static uint32_t getProfileId(
 	fiftyoneDegreesCollection* profileOffsets,
 	uint32_t index,
 	Exception* exception) {
-#ifdef FIFTYONE_DEGREES_REDUCED_FILE
-	// A reduced size data file does not contain profile ids, so this method
-	// cannot be implemented.
-#ifdef _MSC_VER
-	UNREFERENCED_PARAMETER(profileOffsets);
-	UNREFERENCED_PARAMETER(index);
-#endif
-	EXCEPTION_SET(NOT_IMPLEMENTED);
-	return 0;
-#else
 	uint32_t profileId = 0;
 	ProfileOffset* profileOffset; // The profile offset pointer
 	Item profileOffsetItem; // The profile offset memory
@@ -192,8 +176,9 @@ static uint32_t getProfileId(
 		COLLECTION_RELEASE(profileOffsets, &profileOffsetItem);
 	}
 	return profileId;
-#endif
 }
+
+#endif
 
 static int comparePropertyIndexes(const void* a, const void* b) {
 	return ((map*)a)->propertyIndex - ((map*)b)->propertyIndex;
@@ -223,6 +208,19 @@ fiftyoneDegreesIndicesPropertyProfileCreate(
 	fiftyoneDegreesPropertiesAvailable* available,
 	fiftyoneDegreesCollection* values,
 	fiftyoneDegreesException* exception) {
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+	// A reduced size data file does not contain profile ids, so a profile id
+	// keyed index cannot be created. Use
+	// fiftyoneDegreesIndicesPropertyProfileCreateFromOffsets instead.
+#ifdef _MSC_VER
+	UNREFERENCED_PARAMETER(profiles);
+	UNREFERENCED_PARAMETER(profileOffsets);
+	UNREFERENCED_PARAMETER(available);
+	UNREFERENCED_PARAMETER(values);
+#endif
+	EXCEPTION_SET(NOT_IMPLEMENTED);
+	return NULL;
+#else
 
 	// Create the ordered list of property indexes.
 	map* propertyIndexes = createPropertyIndexes(available, exception);
@@ -238,6 +236,7 @@ fiftyoneDegreesIndicesPropertyProfileCreate(
 		return NULL;
 	}
 	index->filled = 0;
+	index->profileOffsets = NULL; // keyed by profile id
 	index->profileCount = CollectionGetCount(profileOffsets);
 	index->minProfileId = getProfileId(profileOffsets, 0, exception);
 	if (!EXCEPTION_OKAY) {
@@ -287,10 +286,182 @@ fiftyoneDegreesIndicesPropertyProfileCreate(
 		Free(index);
 		return NULL;
 	}
+#endif
+}
+
+// Ascending order comparison for two profile offsets.
+static int compareProfileOffsets(const void* a, const void* b) {
+	const uint32_t offsetA = *(const uint32_t*)a;
+	const uint32_t offsetB = *(const uint32_t*)b;
+	return offsetA < offsetB ? -1 : (offsetA > offsetB ? 1 : 0);
+}
+
+// Gets the pure profile offset for the entry at entryIndex in the
+// profileOffsets collection using the extractor provided. Returns true if the
+// entry was read successfully.
+static bool getPureProfileOffset(
+	fiftyoneDegreesCollection* profileOffsets,
+	fiftyoneDegreesProfileOffsetValueExtractor offsetValueExtractor,
+	uint32_t entryIndex,
+	uint32_t* pureOffset,
+	Exception* exception) {
+	Item entryItem; // The current profile offset entry memory
+	DataReset(&entryItem.data);
+	const CollectionKey entryKey = {
+		entryIndex,
+		CollectionKeyType_ProfileOffset,
+	};
+	const void* rawEntry = profileOffsets->get(
+		profileOffsets,
+		&entryKey,
+		&entryItem,
+		exception);
+	if (rawEntry == NULL || EXCEPTION_FAILED) {
+		return false;
+	}
+	*pureOffset = offsetValueExtractor(rawEntry);
+	COLLECTION_RELEASE(profileOffsets, &entryItem);
+	return true;
+}
+
+fiftyoneDegreesIndicesPropertyProfile*
+fiftyoneDegreesIndicesPropertyProfileCreateFromOffsets(
+	fiftyoneDegreesCollection* profiles,
+	fiftyoneDegreesCollection* profileOffsets,
+	fiftyoneDegreesProfileOffsetValueExtractor offsetValueExtractor,
+	fiftyoneDegreesPropertiesAvailable* available,
+	fiftyoneDegreesCollection* values,
+	fiftyoneDegreesException* exception) {
+	uint32_t i;
+	Profile* profile; // The current profile pointer
+	Item profileItem; // The current profile memory
+
+	// Check the number of cells needed can be counted and addressed.
+	const uint32_t entryCount = CollectionGetCount(profileOffsets);
+	if (entryCount == 0 ||
+		available->count == 0 ||
+		(uint64_t)entryCount * available->count > (uint64_t)UINT32_MAX) {
+		return NULL;
+	}
+
+	// Create the ordered list of property indexes.
+	map* propertyIndexes = createPropertyIndexes(available, exception);
+	if (propertyIndexes == NULL) {
+		return NULL;
+	}
+
+	// Allocate memory for the index and set the fields.
+	IndicesPropertyProfile* index = (IndicesPropertyProfile*)Malloc(
+		sizeof(IndicesPropertyProfile));
+	if (index == NULL) {
+		EXCEPTION_SET(FIFTYONE_DEGREES_STATUS_INSUFFICIENT_MEMORY);
+		Free(propertyIndexes);
+		return NULL;
+	}
+	index->filled = 0;
+	index->minProfileId = 0; // unused when keyed by profile offset
+	index->maxProfileId = 0; // unused when keyed by profile offset
+	index->availablePropertyCount = available->count;
+
+	// Read all the profile offsets into an array sorted in ascending order
+	// with any duplicate entries removed.
+	index->profileOffsets = (uint32_t*)Malloc(
+		sizeof(uint32_t) * entryCount);
+	if (index->profileOffsets == NULL) {
+		EXCEPTION_SET(FIFTYONE_DEGREES_STATUS_INSUFFICIENT_MEMORY);
+		Free(index);
+		Free(propertyIndexes);
+		return NULL;
+	}
+	uint32_t count = 0;
+	for (i = 0; i < entryCount && EXCEPTION_OKAY; i++) {
+		uint32_t pureOffset;
+		if (getPureProfileOffset(
+			profileOffsets,
+			offsetValueExtractor,
+			i,
+			&pureOffset,
+			exception)) {
+			index->profileOffsets[count++] = pureOffset;
+		}
+	}
+	if (EXCEPTION_FAILED || count == 0) {
+		Free(index->profileOffsets);
+		Free(index);
+		Free(propertyIndexes);
+		return NULL;
+	}
+	qsort(
+		index->profileOffsets,
+		count,
+		sizeof(uint32_t),
+		compareProfileOffsets);
+	uint32_t distinct = 1;
+	for (i = 1; i < count; i++) {
+		if (index->profileOffsets[i] != index->profileOffsets[distinct - 1]) {
+			index->profileOffsets[distinct++] = index->profileOffsets[i];
+		}
+	}
+	index->profileCount = distinct;
+	index->size = distinct * available->count;
+
+	// Allocate memory for the value indexes and set every cell to the no
+	// value marker so that profiles without values for a property can be
+	// identified.
+	index->valueIndexes = (uint32_t*)Malloc(sizeof(uint32_t) * index->size);
+	if (index->valueIndexes == NULL) {
+		EXCEPTION_SET(FIFTYONE_DEGREES_STATUS_INSUFFICIENT_MEMORY);
+		Free(index->profileOffsets);
+		Free(index);
+		Free(propertyIndexes);
+		return NULL;
+	}
+	memset(index->valueIndexes, 0xFF, sizeof(uint32_t) * index->size);
+
+	// For each of the distinct profile offsets add the property value indexes
+	// to the row for the profile.
+	DataReset(&profileItem.data);
+	CollectionKey profileKey = {
+		0,
+		CollectionKeyType_Profile,
+	};
+	for (i = 0; i < distinct && EXCEPTION_OKAY; i++) {
+		profileKey.indexOrOffset.offset = index->profileOffsets[i];
+		profile = (Profile*)profiles->get(
+			profiles,
+			&profileKey,
+			&profileItem,
+			exception);
+		if (profile != NULL && EXCEPTION_OKAY) {
+			addProfileValuesMethod(
+				index,
+				propertyIndexes,
+				values,
+				profile,
+				i * index->availablePropertyCount,
+				exception);
+			COLLECTION_RELEASE(profiles, &profileItem);
+		}
+	}
+	Free(propertyIndexes);
+
+	// Return the index or free the memory if there was an exception.
+	if (EXCEPTION_OKAY) {
+		return index;
+	}
+	else {
+		Free(index->valueIndexes);
+		Free(index->profileOffsets);
+		Free(index);
+		return NULL;
+	}
 }
 
 void fiftyoneDegreesIndicesPropertyProfileFree(
 	fiftyoneDegreesIndicesPropertyProfile* index) {
+	if (index->profileOffsets != NULL) {
+		Free(index->profileOffsets);
+	}
 	Free(index->valueIndexes);
 	Free(index);
 }
@@ -299,9 +470,54 @@ uint32_t fiftyoneDegreesIndicesPropertyProfileLookup(
 	fiftyoneDegreesIndicesPropertyProfile* index,
 	uint32_t profileId,
 	uint32_t availablePropertyIndex) {
-	uint32_t valueIndex = 
-		(getProfileIdIndex(index, profileId) * index->availablePropertyCount) + 
+#ifdef FIFTYONE_DEGREES_REDUCED_FILE
+	// A reduced size data file does not contain profile ids, so a profile id
+	// keyed index is never created.
+#ifdef _MSC_VER
+	UNREFERENCED_PARAMETER(index);
+	UNREFERENCED_PARAMETER(profileId);
+	UNREFERENCED_PARAMETER(availablePropertyIndex);
+#endif
+	assert(false);
+	return 0;
+#else
+	uint32_t valueIndex =
+		(getProfileIdIndex(index, profileId) * index->availablePropertyCount) +
 		availablePropertyIndex;
 	assert(valueIndex < index->size);
 	return index->valueIndexes[valueIndex];
+#endif
+}
+
+bool fiftyoneDegreesIndicesPropertyProfileLookupByOffset(
+	const fiftyoneDegreesIndicesPropertyProfile* index,
+	uint32_t profileOffset,
+	uint32_t availablePropertyIndex,
+	uint32_t* firstValueIndex) {
+	if (index == NULL ||
+		index->profileOffsets == NULL ||
+		availablePropertyIndex >= index->availablePropertyCount) {
+		return false;
+	}
+
+	// Binary search for the row relating to the profile offset.
+	uint32_t lower = 0;
+	uint32_t upper = index->profileCount;
+	while (lower < upper) {
+		const uint32_t middle = lower + (upper - lower) / 2;
+		if (index->profileOffsets[middle] < profileOffset) {
+			lower = middle + 1;
+		}
+		else {
+			upper = middle;
+		}
+	}
+	if (lower >= index->profileCount ||
+		index->profileOffsets[lower] != profileOffset) {
+		return false;
+	}
+	*firstValueIndex = index->valueIndexes[
+		((uint64_t)lower * index->availablePropertyCount) +
+			availablePropertyIndex];
+	return true;
 }

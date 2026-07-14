@@ -124,13 +124,9 @@ typedef struct fiftyoneDegrees_profile_offset_t {
 } fiftyoneDegreesProfileOffset;
 #pragma pack(pop)
 
-/**
- * Function that extracts "pure" profile offset
- * from a value inside `profileOffsets` collection
- * @param rawProfileOffset a "raw" value retrieved from `profileOffsets`
- * @return Offset to the profile in the profiles structure
- */
-typedef uint32_t (*fiftyoneDegreesProfileOffsetValueExtractor)(const void *rawProfileOffset);
+// The fiftyoneDegreesProfileOffsetValueExtractor typedef is declared in
+// indices.h (included above) so that it can also be used by the property
+// profile index methods.
 
 /**
  * Function that extracts "pure" profile offset
@@ -281,6 +277,38 @@ EXTERNAL uint32_t fiftyoneDegreesProfileIterateValuesForPropertyWithIndex(
 	const fiftyoneDegreesCollection* values,
 	fiftyoneDegreesIndicesPropertyProfile* index,
 	uint32_t availablePropertyIndex,
+	const fiftyoneDegreesProfile* profile,
+	const fiftyoneDegreesProperty* property,
+	void* state,
+	fiftyoneDegreesProfileIterateMethod callback,
+	fiftyoneDegreesException* exception);
+
+/**
+ * Iterate over all values contained in the profile which relate to the
+ * specified property, calling the callback method for each. Uses an index
+ * created by fiftyoneDegreesIndicesPropertyProfileCreateFromOffsets and keyed
+ * by the profile offset, so is suitable for data files where the profiles do
+ * not contain profile ids. If the profile offset is not known to the index
+ * then the method falls back to
+ * fiftyoneDegreesProfileIterateValuesForProperty.
+ * @param values collection containing all values
+ * @param index of property and profile first value indexes keyed by profile
+ * offset
+ * @param availablePropertyIndex the index of the available property
+ * @param profileOffset offset of the profile in the profiles collection
+ * @param profile pointer to the profile to iterate the values of
+ * @param property which the values must relate to
+ * @param state pointer containing data needed for the callback method
+ * @param callback method to be called for each value
+ * @param exception pointer to an exception data structure to be used if an
+ * exception occurs. See exceptions.h
+ * @return the number of matching values which have been iterated
+ */
+EXTERNAL uint32_t fiftyoneDegreesProfileIterateValuesForPropertyWithIndexAndOffset(
+	const fiftyoneDegreesCollection* values,
+	const fiftyoneDegreesIndicesPropertyProfile* index,
+	uint32_t availablePropertyIndex,
+	uint32_t profileOffset,
 	const fiftyoneDegreesProfile* profile,
 	const fiftyoneDegreesProperty* property,
 	void* state,

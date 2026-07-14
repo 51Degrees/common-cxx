@@ -520,6 +520,49 @@ uint32_t fiftyoneDegreesProfileIterateValuesForPropertyWithIndex(
 #endif
 }
 
+uint32_t fiftyoneDegreesProfileIterateValuesForPropertyWithIndexAndOffset(
+	const fiftyoneDegreesCollection* values,
+	const fiftyoneDegreesIndicesPropertyProfile* index,
+	uint32_t availablePropertyIndex,
+	uint32_t profileOffset,
+	const fiftyoneDegreesProfile* profile,
+	const fiftyoneDegreesProperty* property,
+	void* state,
+	fiftyoneDegreesProfileIterateMethod callback,
+	fiftyoneDegreesException* exception) {
+	uint32_t i;
+	if (IndicesPropertyProfileLookupByOffset(
+		index,
+		profileOffset,
+		availablePropertyIndex,
+		&i)) {
+		if (i < profile->valueCount) {
+			const uint32_t* firstValueIndex =
+				((const uint32_t*)(profile + 1)) + i;
+			return iterateValues(
+				values,
+				property,
+				state,
+				callback,
+				firstValueIndex,
+				((const uint32_t*)(profile + 1)) + profile->valueCount,
+				exception);
+		}
+		// The profile is known to the index and has no values for the
+		// property.
+		return 0;
+	}
+	// The profile offset is not known to the index, so fall back to searching
+	// the values associated with the profile.
+	return fiftyoneDegreesProfileIterateValuesForProperty(
+		values,
+		profile,
+		property,
+		state,
+		callback,
+		exception);
+}
+
 uint32_t fiftyoneDegreesProfileIterateProfilesForPropertyAndValue(
 	fiftyoneDegreesCollection *strings,
 	fiftyoneDegreesCollection *properties,
