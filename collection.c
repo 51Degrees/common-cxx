@@ -31,6 +31,27 @@ MAP_TYPE(CollectionConfig)
 #endif
 
 /**
+ * Converts a stored offset, or the stored size, of a collection to bytes.
+ * Only variable length collections created with an offset shift store these
+ * in units larger than a byte, and only when compiled with large data file
+ * support. Every other collection uses a shift of zero, and builds without
+ * large data file support compile to the value unchanged so behaviour and
+ * performance are identical to before the shift was introduced.
+ */
+#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
+#define COLLECTION_UNITS_TO_BYTES(s, v) (((uint64_t)(v)) << (s))
+#define COLLECTION_OFFSET_SHIFT(c) ((c)->offsetShift)
+#else
+#define COLLECTION_UNITS_TO_BYTES(s, v) (v)
+#define COLLECTION_OFFSET_SHIFT(c) 0
+#endif
+
+static fiftyoneDegreesCollection* collectionCreateFromMemory(
+	fiftyoneDegreesMemoryReader *reader,
+	fiftyoneDegreesCollectionHeader header,
+	byte offsetShift);
+
+/**
  * Used by methods which retrieve values from a collection to set an exception.
  */
 #ifndef FIFTYONE_DEGREES_EXCEPTIONS_DISABLED
@@ -196,7 +217,9 @@ static void* getMemoryVariable(
 	Exception *exception) {
 	CollectionMemory *memory = (CollectionMemory*)collection->state;
 	if (key->indexOrOffset.offset < collection->size) {
-		item->data.ptr = memory->firstByte + key->indexOrOffset.offset;
+		item->data.ptr = memory->firstByte + (size_t)COLLECTION_UNITS_TO_BYTES(
+			COLLECTION_OFFSET_SHIFT(collection),
+			key->indexOrOffset.offset);
 		assert(item->data.ptr < memory->lastByte);
 		item->collection = collection;
 	}
@@ -358,8 +381,12 @@ static void loaderCache(
 static Collection* createCollection(
 	size_t sizeOfState,
 	CollectionHeader *header,
-	const char * const typeName) {
+	const char * const typeName,
+	byte offsetShift) {
 	Collection *collection = (Collection*)Malloc(sizeof(Collection));
+#ifndef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
+	(void)offsetShift;
+#endif
 	if (collection != NULL) {
 		collection->state = Malloc(sizeOfState);
 		collection->typeName = typeName;
@@ -368,6 +395,9 @@ static Collection* createCollection(
 				0 : header->length / header->count;
 			collection->size = header->length;
 			collection->count = header->count;
+#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
+			collection->offsetShift = offsetShift;
+#endif
 		}
 		else {
 			Free(collection);
@@ -380,7 +410,7 @@ static Collection* createCollection(
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 
 static CollectionFile* readFile(CollectionFile *fileCollection, FILE *file) {
-	
+
 	// Set the count of items if not already set and the elements are of a
 	// fixed size.
 	if (fileCollection->collection->count == 0 &&
@@ -393,7 +423,12 @@ static CollectionFile* readFile(CollectionFile *fileCollection, FILE *file) {
 	fileCollection->offset = FileTell(file);
 
 	// Move the file handle past the collection.
-	if (FileSeek(file, fileCollection->collection->size, SEEK_CUR) != 0) {
+	if (FileSeek(
+		file,
+		(FileOffset)COLLECTION_UNITS_TO_BYTES(
+			COLLECTION_OFFSET_SHIFT(fileCollection->collection),
+			fileCollection->collection->size),
+		SEEK_CUR) != 0) {
 		return NULL;
 	}
 
@@ -404,13 +439,15 @@ static Collection* createFromFile(
 	FILE *file,
 	FilePool *reader,
 	CollectionHeader *header,
-	CollectionFileRead read) {
+	CollectionFileRead read,
+	byte offsetShift) {
 
 	// Allocate the memory for the collection and file implementation.
 	Collection *collection = createCollection(
 		sizeof(CollectionFile),
 		header,
-		"CollectionFile");
+		"CollectionFile",
+		offsetShift);
 	CollectionFile *fileCollection = (CollectionFile*)collection->state;
 	fileCollection->collection = collection;
 	fileCollection->reader = reader;
@@ -436,9 +473,13 @@ static Collection* createFromFile(
 
 static Collection* createFromFileToMemory(
 	FILE *file,
-	CollectionHeader header) {
+	CollectionHeader header,
+	byte offsetShift) {
 	EXCEPTION_CREATE;
-	byte * const data = (byte*)Malloc(header.length * sizeof(byte));
+	const size_t lengthInBytes = (size_t)COLLECTION_UNITS_TO_BYTES(
+		offsetShift,
+		header.length);
+	byte * const data = (byte*)Malloc(lengthInBytes * sizeof(byte));
 	MemoryReader memory;
 
 	memory.current = data;
@@ -448,7 +489,7 @@ static Collection* createFromFileToMemory(
 	}
 
 	memory.startByte = memory.current;
-	memory.length = (FileOffset)header.length;
+	memory.length = (FileOffset)lengthInBytes;
 	memory.lastByte = memory.current + memory.length;
 
 	// Position the file reader at the start of the collection.
@@ -458,13 +499,16 @@ static Collection* createFromFileToMemory(
 	}
 
 	// Read the portion of the file into memory.
-	if (fread(memory.startByte, 1, header.length, file) != header.length) {
+	if (fread(memory.startByte, 1, lengthInBytes, file) != lengthInBytes) {
 		Free(data);
 		return NULL;
 	}
 
 	header.startPosition = 0;
-	Collection * const result = CollectionCreateFromMemory(&memory, header);
+	Collection * const result = collectionCreateFromMemory(
+		&memory,
+		header,
+		offsetShift);
 
 	if (result == NULL) {
 		Free(data);
@@ -484,18 +528,20 @@ static Collection* createFromFileCached(
 	CollectionHeader *header,
 	uint32_t capacity,
 	uint16_t concurrency,
-	CollectionFileRead read) {
+	CollectionFileRead read,
+	byte offsetShift) {
 
 	// Allocate the memory for the collection and implementation.
 	Collection *collection = createCollection(
 		sizeof(CollectionFile),
 		header,
-		"CollectionCache");
+		"CollectionCache",
+		offsetShift);
 	CollectionCache *cache = (CollectionCache*)collection->state;
 	cache->cache = NULL;
 
 	// Create the file collection to be used with the cache.
-	cache->source = createFromFile(file, reader, header, read);
+	cache->source = createFromFile(file, reader, header, read, offsetShift);
 	if (cache->source == NULL) {
 		freeCacheCollection(collection);
 		return NULL;
@@ -534,7 +580,8 @@ static Collection* createFromFileMaybeCached(
 	FilePool *reader,
 	const CollectionConfig *config,
 	CollectionHeader header,
-	CollectionFileRead read) {
+	CollectionFileRead read,
+	byte offsetShift) {
 
 	// Return the file position to the start of the collection ready to
 	// read the next collection.
@@ -543,7 +590,7 @@ static Collection* createFromFileMaybeCached(
 		// Choose between the cached or file based collection.
 		if (config->capacity > 0 && config->concurrency > 0) {
 
-			// If the collection should have a cache then set the next 
+			// If the collection should have a cache then set the next
 			// collection to be cache based.
 			return createFromFileCached(
 				file,
@@ -551,13 +598,14 @@ static Collection* createFromFileMaybeCached(
 				&header,
 				config->capacity,
 				config->concurrency,
-				read);
+				read,
+				offsetShift);
 		}
 		else {
 
-			// If there is no cache then the entries will be fetched 
+			// If there is no cache then the entries will be fetched
 			// directly from the source file.
-			return createFromFile(file, reader, &header, read);
+			return createFromFile(file, reader, &header, read, offsetShift);
 		}
 	}
 
@@ -593,9 +641,10 @@ fiftyoneDegreesCollectionHeader fiftyoneDegreesCollectionHeaderFromMemory(
 	return header;
 }
 
-fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromMemory(
+static fiftyoneDegreesCollection* collectionCreateFromMemory(
 	fiftyoneDegreesMemoryReader *reader,
-	fiftyoneDegreesCollectionHeader header) {
+	fiftyoneDegreesCollectionHeader header,
+	byte offsetShift) {
 
 	// Validate the header and the reader are in sync at the correct position.
 	if ((FileOffsetUnsigned)(reader->current - reader->startByte) !=
@@ -607,16 +656,19 @@ fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromMemory(
 	Collection *collection = createCollection(
 		sizeof(CollectionMemory),
 		&header,
-		"CollectionMemory");
+		"CollectionMemory",
+		offsetShift);
 	CollectionMemory *memory = (CollectionMemory*)collection->state;
 
 	// Configure the fields for the collection.
 	memory->collection = collection;
 	memory->memoryToFree = NULL;
-	memory->collection->elementSize = header.count == 0 ? 
+	memory->collection->elementSize = header.count == 0 ?
 		0 : header.length / header.count;
 	memory->firstByte = reader->current;
-	memory->lastByte = memory->firstByte + memory->collection->size;
+	memory->lastByte = memory->firstByte + (size_t)COLLECTION_UNITS_TO_BYTES(
+		offsetShift,
+		memory->collection->size);
 
 	// Assign the get and release functions for the collection.
 	if (memory->collection->elementSize != 0) {
@@ -635,17 +687,37 @@ fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromMemory(
 	}
 	collection->freeCollection = freeMemoryCollection;
 
-	// Move over the structure and the size integer checking the move 
+	// Move over the structure and the size integer checking the move
 	// operation was successful.
 	if (MemoryAdvance(
 		reader,
-		memory->collection->size) == false) {
+		(size_t)COLLECTION_UNITS_TO_BYTES(
+			offsetShift,
+			memory->collection->size)) == false) {
 		collection->freeCollection(collection);
 		collection = NULL;
 	}
 
 	return collection;
 }
+
+fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromMemory(
+	fiftyoneDegreesMemoryReader *reader,
+	fiftyoneDegreesCollectionHeader header) {
+	return collectionCreateFromMemory(reader, header, 0);
+}
+
+#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
+
+fiftyoneDegreesCollection*
+fiftyoneDegreesCollectionCreateFromMemoryWithOffsetShift(
+	fiftyoneDegreesMemoryReader *reader,
+	fiftyoneDegreesCollectionHeader header,
+	byte offsetShift) {
+	return collectionCreateFromMemory(reader, header, offsetShift);
+}
+
+#endif
 
 fiftyoneDegreesCollectionHeader fiftyoneDegreesCollectionHeaderFromFile(
 	FILE *file,
@@ -676,16 +748,23 @@ fiftyoneDegreesCollectionHeader fiftyoneDegreesCollectionHeaderFromFile(
 	return header;
 }
 
-fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromFile(
+static fiftyoneDegreesCollection* collectionCreateFromFile(
 	FILE *file,
 	fiftyoneDegreesFilePool *reader,
 	const fiftyoneDegreesCollectionConfig *config,
 	fiftyoneDegreesCollectionHeader header,
-	fiftyoneDegreesCollectionFileRead read) {
+	fiftyoneDegreesCollectionFileRead read,
+	byte offsetShift) {
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 	if (!config->loaded) {
-		return createFromFileMaybeCached(file, reader, config, header, read);
+		return createFromFileMaybeCached(
+			file,
+			reader,
+			config,
+			header,
+			read,
+			offsetShift);
 	}
 #else
 #	ifdef _MSC_VER
@@ -695,8 +774,38 @@ fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromFile(
 #	endif
 #endif
 
-	return createFromFileToMemory(file, header);
+	return createFromFileToMemory(file, header, offsetShift);
 }
+
+fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromFile(
+	FILE *file,
+	fiftyoneDegreesFilePool *reader,
+	const fiftyoneDegreesCollectionConfig *config,
+	fiftyoneDegreesCollectionHeader header,
+	fiftyoneDegreesCollectionFileRead read) {
+	return collectionCreateFromFile(file, reader, config, header, read, 0);
+}
+
+#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
+
+fiftyoneDegreesCollection*
+fiftyoneDegreesCollectionCreateFromFileWithOffsetShift(
+	FILE *file,
+	fiftyoneDegreesFilePool *reader,
+	const fiftyoneDegreesCollectionConfig *config,
+	fiftyoneDegreesCollectionHeader header,
+	fiftyoneDegreesCollectionFileRead read,
+	byte offsetShift) {
+	return collectionCreateFromFile(
+		file,
+		reader,
+		config,
+		header,
+		read,
+		offsetShift);
+}
+
+#endif
 
 fiftyoneDegreesFileHandle* fiftyoneDegreesCollectionReadFilePosition(
 	const fiftyoneDegreesCollectionFile *file,
@@ -807,8 +916,14 @@ static void* readFileVariable(
 	uint32_t bytesNeeded, leftToRead;
 	void *ptr = NULL;
 
-	// Set the file position to the start of the item being read.
-	if (FileSeek(handle->file, fileCollection->offset + offset, SEEK_SET) == 0) {
+	// Set the file position to the start of the item being read. The offset
+	// is converted from the collection's offset units to bytes.
+	if (FileSeek(
+		handle->file,
+		fileCollection->offset + (FileOffset)COLLECTION_UNITS_TO_BYTES(
+			COLLECTION_OFFSET_SHIFT(fileCollection->collection),
+			offset),
+		SEEK_SET) == 0) {
 
 		// Read the item header minus the last part of the structure 
 		// that may not always be included with every item.
