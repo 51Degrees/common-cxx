@@ -46,10 +46,24 @@ MAP_TYPE(CollectionConfig)
 #define COLLECTION_OFFSET_SHIFT(c) 0
 #endif
 
+/**
+ * Add the offset shift parameter to the internal creation methods, and pass
+ * it between them, only when compiled with large data file support. Without
+ * it the signatures and calls compile exactly as they did before the shift
+ * was introduced.
+ */
+#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
+#define COLLECTION_SHIFT_PARAM , byte offsetShift
+#define COLLECTION_SHIFT_ARG(s) , s
+#else
+#define COLLECTION_SHIFT_PARAM
+#define COLLECTION_SHIFT_ARG(s)
+#endif
+
 static fiftyoneDegreesCollection* collectionCreateFromMemory(
 	fiftyoneDegreesMemoryReader *reader,
-	fiftyoneDegreesCollectionHeader header,
-	byte offsetShift);
+	fiftyoneDegreesCollectionHeader header
+	COLLECTION_SHIFT_PARAM);
 
 /**
  * Used by methods which retrieve values from a collection to set an exception.
@@ -381,12 +395,9 @@ static void loaderCache(
 static Collection* createCollection(
 	size_t sizeOfState,
 	CollectionHeader *header,
-	const char * const typeName,
-	byte offsetShift) {
+	const char * const typeName
+	COLLECTION_SHIFT_PARAM) {
 	Collection *collection = (Collection*)Malloc(sizeof(Collection));
-#ifndef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
-	(void)offsetShift;
-#endif
 	if (collection != NULL) {
 		collection->state = Malloc(sizeOfState);
 		collection->typeName = typeName;
@@ -439,15 +450,15 @@ static Collection* createFromFile(
 	FILE *file,
 	FilePool *reader,
 	CollectionHeader *header,
-	CollectionFileRead read,
-	byte offsetShift) {
+	CollectionFileRead read
+	COLLECTION_SHIFT_PARAM) {
 
 	// Allocate the memory for the collection and file implementation.
 	Collection *collection = createCollection(
 		sizeof(CollectionFile),
 		header,
-		"CollectionFile",
-		offsetShift);
+		"CollectionFile"
+		COLLECTION_SHIFT_ARG(offsetShift));
 	CollectionFile *fileCollection = (CollectionFile*)collection->state;
 	fileCollection->collection = collection;
 	fileCollection->reader = reader;
@@ -473,8 +484,8 @@ static Collection* createFromFile(
 
 static Collection* createFromFileToMemory(
 	FILE *file,
-	CollectionHeader header,
-	byte offsetShift) {
+	CollectionHeader header
+	COLLECTION_SHIFT_PARAM) {
 	EXCEPTION_CREATE;
 	const size_t lengthInBytes = (size_t)COLLECTION_UNITS_TO_BYTES(
 		offsetShift,
@@ -507,8 +518,8 @@ static Collection* createFromFileToMemory(
 	header.startPosition = 0;
 	Collection * const result = collectionCreateFromMemory(
 		&memory,
-		header,
-		offsetShift);
+		header
+		COLLECTION_SHIFT_ARG(offsetShift));
 
 	if (result == NULL) {
 		Free(data);
@@ -528,20 +539,25 @@ static Collection* createFromFileCached(
 	CollectionHeader *header,
 	uint32_t capacity,
 	uint16_t concurrency,
-	CollectionFileRead read,
-	byte offsetShift) {
+	CollectionFileRead read
+	COLLECTION_SHIFT_PARAM) {
 
 	// Allocate the memory for the collection and implementation.
 	Collection *collection = createCollection(
 		sizeof(CollectionFile),
 		header,
-		"CollectionCache",
-		offsetShift);
+		"CollectionCache"
+		COLLECTION_SHIFT_ARG(offsetShift));
 	CollectionCache *cache = (CollectionCache*)collection->state;
 	cache->cache = NULL;
 
 	// Create the file collection to be used with the cache.
-	cache->source = createFromFile(file, reader, header, read, offsetShift);
+	cache->source = createFromFile(
+		file,
+		reader,
+		header,
+		read
+		COLLECTION_SHIFT_ARG(offsetShift));
 	if (cache->source == NULL) {
 		freeCacheCollection(collection);
 		return NULL;
@@ -580,8 +596,8 @@ static Collection* createFromFileMaybeCached(
 	FilePool *reader,
 	const CollectionConfig *config,
 	CollectionHeader header,
-	CollectionFileRead read,
-	byte offsetShift) {
+	CollectionFileRead read
+	COLLECTION_SHIFT_PARAM) {
 
 	// Return the file position to the start of the collection ready to
 	// read the next collection.
@@ -598,14 +614,19 @@ static Collection* createFromFileMaybeCached(
 				&header,
 				config->capacity,
 				config->concurrency,
-				read,
-				offsetShift);
+				read
+				COLLECTION_SHIFT_ARG(offsetShift));
 		}
 		else {
 
 			// If there is no cache then the entries will be fetched
 			// directly from the source file.
-			return createFromFile(file, reader, &header, read, offsetShift);
+			return createFromFile(
+				file,
+				reader,
+				&header,
+				read
+				COLLECTION_SHIFT_ARG(offsetShift));
 		}
 	}
 
@@ -643,8 +664,8 @@ fiftyoneDegreesCollectionHeader fiftyoneDegreesCollectionHeaderFromMemory(
 
 static fiftyoneDegreesCollection* collectionCreateFromMemory(
 	fiftyoneDegreesMemoryReader *reader,
-	fiftyoneDegreesCollectionHeader header,
-	byte offsetShift) {
+	fiftyoneDegreesCollectionHeader header
+	COLLECTION_SHIFT_PARAM) {
 
 	// Validate the header and the reader are in sync at the correct position.
 	if ((FileOffsetUnsigned)(reader->current - reader->startByte) !=
@@ -656,8 +677,8 @@ static fiftyoneDegreesCollection* collectionCreateFromMemory(
 	Collection *collection = createCollection(
 		sizeof(CollectionMemory),
 		&header,
-		"CollectionMemory",
-		offsetShift);
+		"CollectionMemory"
+		COLLECTION_SHIFT_ARG(offsetShift));
 	CollectionMemory *memory = (CollectionMemory*)collection->state;
 
 	// Configure the fields for the collection.
@@ -704,7 +725,7 @@ static fiftyoneDegreesCollection* collectionCreateFromMemory(
 fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromMemory(
 	fiftyoneDegreesMemoryReader *reader,
 	fiftyoneDegreesCollectionHeader header) {
-	return collectionCreateFromMemory(reader, header, 0);
+	return collectionCreateFromMemory(reader, header COLLECTION_SHIFT_ARG(0));
 }
 
 #ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
@@ -714,7 +735,10 @@ fiftyoneDegreesCollectionCreateFromMemoryWithOffsetShift(
 	fiftyoneDegreesMemoryReader *reader,
 	fiftyoneDegreesCollectionHeader header,
 	byte offsetShift) {
-	return collectionCreateFromMemory(reader, header, offsetShift);
+	return collectionCreateFromMemory(
+		reader,
+		header
+		COLLECTION_SHIFT_ARG(offsetShift));
 }
 
 #endif
@@ -753,8 +777,8 @@ static fiftyoneDegreesCollection* collectionCreateFromFile(
 	fiftyoneDegreesFilePool *reader,
 	const fiftyoneDegreesCollectionConfig *config,
 	fiftyoneDegreesCollectionHeader header,
-	fiftyoneDegreesCollectionFileRead read,
-	byte offsetShift) {
+	fiftyoneDegreesCollectionFileRead read
+	COLLECTION_SHIFT_PARAM) {
 
 #ifndef FIFTYONE_DEGREES_MEMORY_ONLY
 	if (!config->loaded) {
@@ -763,8 +787,8 @@ static fiftyoneDegreesCollection* collectionCreateFromFile(
 			reader,
 			config,
 			header,
-			read,
-			offsetShift);
+			read
+			COLLECTION_SHIFT_ARG(offsetShift));
 	}
 #else
 #	ifdef _MSC_VER
@@ -774,7 +798,7 @@ static fiftyoneDegreesCollection* collectionCreateFromFile(
 #	endif
 #endif
 
-	return createFromFileToMemory(file, header, offsetShift);
+	return createFromFileToMemory(file, header COLLECTION_SHIFT_ARG(offsetShift));
 }
 
 fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromFile(
@@ -783,7 +807,13 @@ fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromFile(
 	const fiftyoneDegreesCollectionConfig *config,
 	fiftyoneDegreesCollectionHeader header,
 	fiftyoneDegreesCollectionFileRead read) {
-	return collectionCreateFromFile(file, reader, config, header, read, 0);
+	return collectionCreateFromFile(
+		file,
+		reader,
+		config,
+		header,
+		read
+		COLLECTION_SHIFT_ARG(0));
 }
 
 #ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
@@ -801,8 +831,8 @@ fiftyoneDegreesCollectionCreateFromFileWithOffsetShift(
 		reader,
 		config,
 		header,
-		read,
-		offsetShift);
+		read
+		COLLECTION_SHIFT_ARG(offsetShift));
 }
 
 #endif
