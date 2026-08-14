@@ -424,9 +424,11 @@ typedef struct fiftyone_degrees_collection_t {
 					  size field, left to convert it to bytes. Zero for all
 					  collections except variable length collections created
 					  with one of the WithOffsetShift methods, where records
-					  are aligned so that 32 bit stored offsets can address
-					  data larger than 4GB. Only available when compiled with
-					  large data file support. */
+					  are aligned relative to the start of the collection so
+					  that 32 bit stored offsets can address data larger than
+					  4GB. The start of the collection itself need not be
+					  aligned. Only available when compiled with large data
+					  file support. */
 #endif
 	const char *typeName; /**< Name of collection type (vtable). */
 } fiftyoneDegreesCollection;
@@ -533,8 +535,10 @@ EXTERNAL fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromMemory(
  * #fiftyoneDegreesCollectionCreateFromFile does, but for variable length
  * collections whose stored offsets, and header length, are recorded in units
  * of 1 << offsetShift bytes rather than in bytes. Records in such collections
- * are aligned by the writer to 1 << offsetShift byte boundaries so that
- * 32 bit stored offsets can address data larger than 4GB. Must not be used
+ * are aligned by the writer to 1 << offsetShift byte boundaries relative to
+ * the start of the collection, which is what the stored offsets are relative
+ * to, so that 32 bit stored offsets can address data larger than 4GB. The
+ * start of the collection itself need not be aligned. Must not be used
  * for fixed width collections. Only available when compiled with large data
  * file support.
  * @param file a file handle positioned at the start of the collection
