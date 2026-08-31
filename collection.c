@@ -65,6 +65,30 @@ static fiftyoneDegreesCollection* collectionCreateFromMemory(
 	fiftyoneDegreesCollectionHeader header
 	COLLECTION_SHIFT_PARAM);
 
+#ifdef FIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT
+
+/**
+ * The largest shift that can be applied to a stored offset. A 32 bit stored
+ * value shifted by more than this cannot be represented in the 64 bit result,
+ * and a shift of 64 or more is undefined behaviour.
+ */
+#define COLLECTION_MAX_OFFSET_SHIFT 32
+
+/**
+ * @return true if the shift can be applied to the collection described by the
+ * header. A shifted collection must be variable length, as the fixed width
+ * read paths resolve an index to a byte offset before the conversion applies,
+ * and a count in the header is what makes a collection fixed width.
+ */
+static bool collectionOffsetShiftIsValid(
+	fiftyoneDegreesCollectionHeader header,
+	byte offsetShift) {
+	return offsetShift == 0 ||
+		(offsetShift <= COLLECTION_MAX_OFFSET_SHIFT && header.count == 0);
+}
+
+#endif
+
 /**
  * Used by methods which retrieve values from a collection to set an exception.
  */
@@ -735,6 +759,9 @@ fiftyoneDegreesCollectionCreateFromMemoryWithOffsetShift(
 	fiftyoneDegreesMemoryReader *reader,
 	fiftyoneDegreesCollectionHeader header,
 	byte offsetShift) {
+	if (collectionOffsetShiftIsValid(header, offsetShift) == false) {
+		return NULL;
+	}
 	return collectionCreateFromMemory(
 		reader,
 		header
@@ -826,6 +853,9 @@ fiftyoneDegreesCollectionCreateFromFileWithOffsetShift(
 	fiftyoneDegreesCollectionHeader header,
 	fiftyoneDegreesCollectionFileRead read,
 	byte offsetShift) {
+	if (collectionOffsetShiftIsValid(header, offsetShift) == false) {
+		return NULL;
+	}
 	return collectionCreateFromFile(
 		file,
 		reader,

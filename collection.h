@@ -277,7 +277,9 @@ if (c != NULL) { c->freeCollection(c); }
 #pragma pack(push, 1)
 typedef struct fiftyone_degrees_collection_header_t {
 	fiftyoneDegreesFileOffsetUnsigned startPosition; /**< Start position in the data file of the entities */
-	uint32_t length; /**< Length in bytes of all the entities */
+	uint32_t length; /**< Length of all the entities, in bytes, or in
+					 offset units where the collection is created with a non
+					 zero shift */
 	uint32_t count; /**< Number of entities in the collection */
 } fiftyoneDegreesCollectionHeader;
 #pragma pack(pop)
@@ -539,8 +541,9 @@ EXTERNAL fiftyoneDegreesCollection* fiftyoneDegreesCollectionCreateFromMemory(
  * the start of the collection, which is what the stored offsets are relative
  * to, so that 32 bit stored offsets can address data larger than 4GB. The
  * start of the collection itself need not be aligned. Must not be used
- * for fixed width collections. Only available when compiled with large data
- * file support.
+ * for fixed width collections, so NULL is returned for a non zero shift when
+ * the header declares a count, and for a shift the 64 bit conversion cannot
+ * represent. Only available when compiled with large data file support.
  * @param file a file handle positioned at the start of the collection
  * @param reader a pool of file handles to use operationally to retrieve data
  * from the file after the collection has been created
