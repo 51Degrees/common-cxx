@@ -217,7 +217,9 @@ if(FIFTYONE_COMMON_CXX_BUILD_TESTING)
 		add_compile_definitions(_FILE_OFFSET_BITS=64)
 	endif ()
 
-	gtest_discover_tests(CommonTests PROPERTIES TEST_DISCOVERY_TIMEOUT 600 DISCOVERY_MODE PRE_TEST)
+	# DISCOVERY_TIMEOUT must stay outside PROPERTIES; anything after that keyword is
+	# parsed as a test property. The 5 second default is too tight for Windows CI.
+	gtest_discover_tests(CommonTests DISCOVERY_TIMEOUT 600 DISCOVERY_MODE PRE_TEST)
 	set_target_properties(CommonTests PROPERTIES FOLDER "Tests")
 
 	if (CMAKE_COMPILER_IS_GNUCC)
