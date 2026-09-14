@@ -71,7 +71,16 @@ public:
         Offset floatValue;
         Offset intValue;
         Offset byteValue;
+        Offset longValue;
+        Offset longestValue;
     } offsets = {};
+
+    // The payload lengths and point counts of the two values that are
+    // longer than a signed 16 bit length can express.
+    uint32_t longValuePoints = 2500;
+    uint32_t longestValuePoints = 4095;
+    size_t longValuePayload = 0;
+    size_t longestValuePayload = 0;
 
 #   ifndef FIFTYONE_DEGREES_MEMORY_ONLY
     struct FileProps {
@@ -202,6 +211,44 @@ static void buildFileCollection(
 }
 #endif
 
+
+// Appends a LINESTRING value of the given number of points to the buffer,
+// with its length in front as an unsigned 16 bit number, and returns the
+// offset it was written at. Used for values longer than a signed 16 bit
+// length can express.
+static Offset addLineStringValue(
+    ByteBuffer &buffer,
+    const size_t fileHeaderSize,
+    const uint32_t points,
+    size_t &payload) {
+    const Offset offset = (Offset)(buffer.size() - fileHeaderSize);
+    payload = 1 + 4 + 4 + (size_t)points * 16;
+    const uint16_t storedLength = (uint16_t)payload;
+    buffer.push_back((byte)(storedLength & 0xFF));
+    buffer.push_back((byte)(storedLength >> 8));
+    buffer.push_back(0); // big endian, as the WKB value above
+    for (int i = 3; i >= 0; i--) {
+        buffer.push_back((byte)((2u >> (i * 8)) & 0xFF)); // LINESTRING
+    }
+    for (int i = 3; i >= 0; i--) {
+        buffer.push_back((byte)((points >> (i * 8)) & 0xFF));
+    }
+    for (uint32_t point = 0; point < points; point++) {
+        const double coords[2] = {
+            0.001 * (double)point,
+            0.002 * (double)point,
+        };
+        for (int c = 0; c < 2; c++) {
+            byte raw[sizeof(double)];
+            memcpy(raw, &coords[c], sizeof(double));
+            for (int i = (int)sizeof(double) - 1; i >= 0; i--) {
+                buffer.push_back(raw[i]);
+            }
+        }
+    }
+    return offset;
+}
+
 void StoredBinaryValues::SetUp() {
     // add some junk into start to emulate file header
     const size_t fileHeaderSize = sizeof(uint32_t);
@@ -225,6 +272,17 @@ void StoredBinaryValues::SetUp() {
     add_value_to_buffer(intValue)
     add_value_to_buffer(byteValue)
 #   undef add_value_to_buffer
+
+    // Values longer than a signed 16 bit length can express. The first is
+    // the size a trimmed confidence area reaches, and the second is within
+    // a few bytes of the largest an unsigned length can carry.
+    offsets.longValue = addLineStringValue(
+        rawStringsBuffer, fileHeaderSize, longValuePoints, longValuePayload);
+    offsets.longestValue = addLineStringValue(
+        rawStringsBuffer,
+        fileHeaderSize,
+        longestValuePoints,
+        longestValuePayload);
 
     header = {
         fileHeaderSize, // startPosition
@@ -1971,3 +2029,127 @@ TEST_F(StoredBinaryValues, StoredBinaryValue_ToBool_Default_54_2) {
         true);
     EXPECT_EQ(true, result);
 }
+
+
+// ============== Values longer than a signed 16 bit length ==============
+// A value of more than 32,767 bytes used to read back with a negative
+// size. From memory the bytes were all present and only the size was
+// wrong, and from a file backed collection the read used that size to
+// work out how many bytes to fetch and crashed with an access violation.
+
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_LongValue_FromMemory) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.memory.get(),
+        offsets.longValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ(dataStart + offsets.longValue, (const byte *)value);
+    ASSERT_EQ((int)longValuePayload, (int)value->byteArrayValue.size);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_LongValue_ToText_FromMemory) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.memory.get(),
+        offsets.longValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+
+    std::vector<char> buffer(1024 * 1024);
+    StringBuilder builder = { buffer.data(), buffer.size() };
+    StringBuilderInit(&builder);
+    StringBuilderAddStringValue(
+        &builder,
+        value,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB,
+        6,
+        exception);
+    StringBuilderComplete(&builder);
+    EXCEPTION_THROW;
+
+    // Every point of the geometry is in the text, so the value was not
+    // cut short by the length in front of it.
+    const char * const text = buffer.data();
+    size_t commas = 0;
+    for (size_t i = 0; text[i] != '\0'; i++) {
+        if (text[i] == ',') {
+            commas++;
+        }
+    }
+    ASSERT_EQ(longValuePoints - 1, (uint32_t)commas);
+    ASSERT_EQ(0, strncmp(text, "LINESTRING(", 11));
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_LongestValue_FromMemory) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.memory.get(),
+        offsets.longestValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ((int)longestValuePayload, (int)value->byteArrayValue.size);
+}
+
+#ifndef FIFTYONE_DEGREES_MEMORY_ONLY
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_LongValue_FromFileNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileNoCache.ptr.get(),
+        offsets.longValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ((int)longValuePayload, (int)value->byteArrayValue.size);
+    // The whole value was fetched from the file, not just its start.
+    const byte * const stored = dataStart + offsets.longValue + 2;
+    const byte * const read = &value->byteArrayValue.firstByte;
+    for (size_t i = 0; i < longValuePayload; i++) {
+        ASSERT_EQ(stored[i], read[i]);
+    }
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_LongestValue_FromFileNoCache) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileNoCache.ptr.get(),
+        offsets.longestValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ((int)longestValuePayload, (int)value->byteArrayValue.size);
+}
+
+TEST_F(StoredBinaryValues, StoredBinaryValue_Get_LongValue_FromFileLoaded) {
+    EXCEPTION_CREATE;
+    ItemBox item;
+    const StoredBinaryValue * const value = StoredBinaryValueGet(
+        collection.fileLoadedNoCache.ptr.get(),
+        offsets.longValue,
+        FIFTYONE_DEGREES_PROPERTY_VALUE_TYPE_WKB,
+        *item,
+        exception);
+    EXCEPTION_THROW;
+    ASSERT_NE(nullptr, value);
+    ASSERT_EQ((int)longValuePayload, (int)value->byteArrayValue.size);
+}
+#endif
