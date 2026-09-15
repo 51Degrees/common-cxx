@@ -200,7 +200,7 @@ bool fiftyoneDegreesOverridesAdd(
 	// Copy the string from the evidence pair to the override data
 	// item.
 	memcpy(&copy->value, value, length + 1);
-	copy->size = (int16_t)(length + 1);
+	copy->size = (uint16_t)(length + 1);
 
 	return true;
 }
