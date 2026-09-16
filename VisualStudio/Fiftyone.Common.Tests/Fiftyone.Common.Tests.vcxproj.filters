@@ -111,6 +111,9 @@
     <ClCompile Include="..\..\tests\HeadersContainer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\tests\IndicesTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\tests\ProfileTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
