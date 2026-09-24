@@ -237,7 +237,10 @@ namespace FiftyoneDegrees {
 			/**
 			 * Get the names of the required properties in required property
 			 * index order, so position i in the vector is the index a caller
-			 * passes for that property. Fixed when the engine is built.
+			 * passes for that property. The names come from the data file
+			 * loaded and are sorted by name, so a refresh that loads a data file
+			 * which gains or loses a required property moves the indexes of the
+			 * properties after it. Call again after a refresh.
 			 * @return the required property names
 			 */
 			vector<string> getRequiredProperties() const;

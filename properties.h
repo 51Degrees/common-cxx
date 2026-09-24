@@ -321,7 +321,10 @@ EXTERNAL fiftyoneDegreesString*
 /**
  * Builds the mask of components whose graphs a detection must evaluate from
  * the required property indexes a caller will read. Bit i means component i,
- * using the componentIndex recorded on each available property.
+ * using the componentIndex recorded on each available property. The engine
+ * must record that index when it initialises its available components, as
+ * the Hash and IP intelligence engines do. Under an engine that does not,
+ * every property reads as component 0.
  * @param available the available properties of the data set
  * @param requiredPropertyIndexes array of required property indexes, or NULL
  * to enable every component
