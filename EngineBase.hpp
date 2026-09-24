@@ -235,6 +235,14 @@ namespace FiftyoneDegrees {
 			const vector<string>* getKeys() const;
 
 			/**
+			 * Get the names of the required properties in required property
+			 * index order, so position i in the vector is the index a caller
+			 * passes for that property. Fixed when the engine is built.
+			 * @return the required property names
+			 */
+			vector<string> getRequiredProperties() const;
+
+			/**
 			 * Get whether or not the engine was compiled with thread-safe
 			 * support. If it was not then certain precautions should be taken.
 			 * @return true if the engine is thread-safe
