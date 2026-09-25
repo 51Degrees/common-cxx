@@ -147,6 +147,24 @@ const vector<string>* EngineBase::getKeys() const {
 	return &keys;
 }
 
+vector<string> EngineBase::getRequiredProperties() const {
+	vector<string> names;
+	DataSetBase *dataSet = DataSetGet(manager.get());
+	if (dataSet != nullptr) {
+		PropertiesAvailable *available = dataSet->available;
+		if (available != nullptr) {
+			for (uint32_t i = 0; i < available->count; i++) {
+				const char *name = STRING(PropertiesGetNameFromRequiredIndex(
+					available,
+					(int)i));
+				names.push_back(name == nullptr ? string() : string(name));
+			}
+		}
+		DataSetRelease(dataSet);
+	}
+	return names;
+}
+
 bool EngineBase::getIsThreadSafe() const {
 	return ThreadingGetIsThreadSafe();
 }

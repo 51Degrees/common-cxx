@@ -56,5 +56,6 @@ public:
 	virtual std::string getProduct();
 	virtual std::string getType();
 	std::vector<std::string>* getKeys();
+	std::vector<std::string> getRequiredProperties();
 	bool getIsThreadSafe();
 };
