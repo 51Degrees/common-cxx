@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> This repo has been merged into the monorepo https://github.com/51Degrees/51degrees-cxx. Please refer to the new monorepository for issues and PRs.
+
 # 51Degrees Common Code Library
 
 ![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=common-cxx&utm_content=readme.md&utm_term=51degrees-common-code-library "Data rewards the curious") **51Degrees Common C Code**
